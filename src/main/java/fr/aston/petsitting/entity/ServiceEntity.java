@@ -31,7 +31,7 @@ public class ServiceEntity implements Serializable {
 	private String name;
 
 	@Column(nullable=false, length=1)
-	private String type;
+	private ServiceEnum type;
 
 	//bi-directional many-to-one association to BookingEntity
 	@OneToMany(mappedBy="service")
@@ -77,11 +77,11 @@ public class ServiceEntity implements Serializable {
 		this.name = name;
 	}
 
-	public String getType() {
+	public ServiceEnum getType() {
 		return this.type;
 	}
 
-	public void setType(String type) {
+	public void setType(ServiceEnum type) {
 		this.type = type;
 	}
 

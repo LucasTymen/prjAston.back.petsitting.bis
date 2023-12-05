@@ -3,6 +3,7 @@ package fr.aston.petsitting.entity;
 import java.io.Serializable;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.security.Provider.Service;
 import java.util.Date;
 
 
@@ -85,8 +86,7 @@ public class BookingEntity implements Serializable {
 	}
 
 	public ServiceEntity getService() {
-		return this.service;
-	}
+		return this.service;}
 
 	public void setService(ServiceEntity service) {
 		this.service = service;

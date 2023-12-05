@@ -1,5 +1,5 @@
 package fr.aston.petsitting.entity;
 
-public enum serviceEnum {
+public enum ServiceEnum {
 WALK, HOSTING, PETSITTING;
 }

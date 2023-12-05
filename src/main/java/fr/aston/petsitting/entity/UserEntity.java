@@ -22,7 +22,7 @@ public class UserEntity implements Serializable {
 	private int id;
 
 	@Column(name="accomodation_type", length=1)
-	private String accomodationType;
+	private AccomodationTypeEnum accomodationType;
 
 	@Column(nullable=false, length=200)
 	private String address;
@@ -65,10 +65,10 @@ public class UserEntity implements Serializable {
 	private String presentation;
 
 	@Column(nullable=false, length=1)
-	private String role;
+	private RoleEnum role;
 
 	@Column(length=1)
-	private String status;
+	private StatusEnum status;
 
 	@Column(nullable=false, length=45)
 	private String telephone;
@@ -92,11 +92,11 @@ public class UserEntity implements Serializable {
 		this.id = id;
 	}
 
-	public String getAccomodationType() {
+	public AccomodationTypeEnum getAccomodationType() {
 		return this.accomodationType;
 	}
 
-	public void setAccomodationType(String accomodationType) {
+	public void setAccomodationType(AccomodationTypeEnum accomodationType) {
 		this.accomodationType = accomodationType;
 	}
 
@@ -204,19 +204,19 @@ public class UserEntity implements Serializable {
 		this.presentation = presentation;
 	}
 
-	public String getRole() {
+	public RoleEnum getRole() {
 		return this.role;
 	}
 
-	public void setRole(String role) {
+	public void setRole(RoleEnum role) {
 		this.role = role;
 	}
 
-	public String getStatus() {
+	public StatusEnum getStatus() {
 		return this.status;
 	}
 
-	public void setStatus(String status) {
+	public void setStatus(StatusEnum status) {
 		this.status = status;
 	}
 
