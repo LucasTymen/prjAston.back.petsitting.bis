@@ -44,7 +44,7 @@ public class AnimalEntity implements Serializable {
 	private String petPhoto;
 
 	@Column(nullable=false, length=1)
-	private String sex;
+	private SexEnum sex;
 
 	@Column(nullable=false, precision=10, scale=2)
 	private BigDecimal weight;
@@ -125,11 +125,11 @@ public class AnimalEntity implements Serializable {
 		this.petPhoto = petPhoto;
 	}
 
-	public String getSex() {
+	public SexEnum getSex() {
 		return this.sex;
 	}
 
-	public void setSex(String sex) {
+	public void setSex(SexEnum sex) {
 		this.sex = sex;
 	}
 
