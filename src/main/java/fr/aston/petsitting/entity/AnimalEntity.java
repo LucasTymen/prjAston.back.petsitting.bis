@@ -25,17 +25,18 @@ public class AnimalEntity implements Serializable {
 	private String breed;
 
 	@Temporal(TemporalType.DATE)
-	@Column(name="date_of_birth", nullable=false)
+	@Column(name="date_of_birth")
 	private Date dateOfBirth;
 
 	@Column(name="is_social", nullable=false)
-	private byte isSocial;
+	private Boolean isSocial;
+	
 
 	@Column(name="is_sterilized", nullable=false)
-	private byte isSterilized;
+	private Boolean isSterilized;
 
 	@Column(name="is_vaccinated", nullable=false)
-	private byte isVaccinated;
+	private Boolean isVaccinated;
 
 	@Column(name="pet_name", nullable=false, length=45)
 	private String petName;
@@ -43,10 +44,12 @@ public class AnimalEntity implements Serializable {
 	@Column(name="pet_photo", length=200)
 	private String petPhoto;
 
-	@Column(nullable=false, length=1)
-	private SexEnum sex;
+	@Column(nullable=false)
+	@Enumerated(EnumType.STRING)
 
-	@Column(nullable=false, precision=10, scale=2)
+	private SexEnum gender;
+
+	@Column(nullable=false, precision=5, scale=2)
 	private BigDecimal weight;
 
 	//bi-directional many-to-one association to UserEntity
@@ -57,6 +60,10 @@ public class AnimalEntity implements Serializable {
 	//bi-directional many-to-one association to BookingEntity
 	@OneToMany(mappedBy="animal")
 	private List<BookingEntity> bookings;
+	
+	@Column(nullable=false)
+	@Enumerated(EnumType.STRING)
+	private AnimalTypeEnum type;
 
 	public AnimalEntity() {
 	}
@@ -85,28 +92,40 @@ public class AnimalEntity implements Serializable {
 		this.dateOfBirth = dateOfBirth;
 	}
 
-	public byte getIsSocial() {
+	public Boolean getIsSocial() {
 		return this.isSocial;
 	}
 
-	public void setIsSocial(byte isSocial) {
-		this.isSocial = isSocial;
+	public void setIsSocial(Boolean isSocial) {	
+		if (isSocial == null) {
+		      this.isSocial = Boolean.FALSE;
+		    } else {
+		      this.isSocial = isSocial;
+		    }
 	}
 
-	public byte getIsSterilized() {
+	public Boolean getIsSterilized() {
 		return this.isSterilized;
 	}
 
-	public void setIsSterilized(byte isSterilized) {
-		this.isSterilized = isSterilized;
+	public void setIsSterilized(Boolean isSterilized) {
+		if (isSterilized == null) {
+		      this.isSterilized = Boolean.FALSE;
+		    } else {
+		      this.isSterilized = isSterilized;
+		    }
 	}
 
-	public byte getIsVaccinated() {
+	public Boolean getIsVaccinated() {
 		return this.isVaccinated;
 	}
 
-	public void setIsVaccinated(byte isVaccinated) {
-		this.isVaccinated = isVaccinated;
+	public void setIsVaccinated(Boolean isVaccinated) {
+		if (isVaccinated == null) {
+		      this.isVaccinated = Boolean.FALSE;
+		    } else {
+		      this.isVaccinated = isVaccinated;
+		    }
 	}
 
 	public String getPetName() {
@@ -126,11 +145,11 @@ public class AnimalEntity implements Serializable {
 	}
 
 	public SexEnum getSex() {
-		return this.sex;
+		return this.gender;
 	}
 
 	public void setSex(SexEnum sex) {
-		this.sex = sex;
+		this.gender = sex;
 	}
 
 	public BigDecimal getWeight() {
@@ -169,6 +188,22 @@ public class AnimalEntity implements Serializable {
 		booking.setAnimal(null);
 
 		return booking;
+	}
+
+	public SexEnum getGender() {
+		return gender;
+	}
+
+	public void setGender(SexEnum gender) {
+		this.gender = gender;
+	}
+
+	public AnimalTypeEnum getType() {
+		return type;
+	}
+
+	public void setType(AnimalTypeEnum type) {
+		this.type = type;
 	}
 
 }

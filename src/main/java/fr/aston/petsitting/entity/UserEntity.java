@@ -1,84 +1,98 @@
 package fr.aston.petsitting.entity;
 
 import java.io.Serializable;
-import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 
 /**
  * The persistent class for the user database table.
- * 
+ *
  */
 @Entity
-@Table(name="user")
+@Table(name = "user")
 public class UserEntity implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Id
-	@GeneratedValue(strategy=GenerationType.IDENTITY)
-	@Column(unique=true, nullable=false)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(unique = true, nullable = false)
 	private int id;
 
-	@Column(name="accomodation_type", length=1)
+
+	@Column(name="accomodation_type")
+	@Enumerated(EnumType.STRING)
 	private AccomodationTypeEnum accomodationType;
 
-	@Column(nullable=false, length=200)
+	@Column(nullable = false, length = 200)
 	private String address;
 
-	@Column(nullable=false, length=45)
+	@Column(nullable = false, length = 45)
 	private String city;
 
 	@Temporal(TemporalType.DATE)
-	@Column(name="date_of_birth", nullable=false)
+	@Column(name = "date_of_birth", nullable = false)
 	private Date dateOfBirth;
 
-	@Column(nullable=false, length=125)
+	@Column(nullable = false, length = 125)
 	private String email;
 
-	@Column(name="first_name", nullable=false, length=45)
+	@Column(name = "first_name", nullable = false, length = 45)
 	private String firstName;
 
-	@Column(name="has_garden")
-	private byte hasGarden;
+	@Column(name = "has_garden")
+	private Boolean hasGarden;
 
-	@Column(name="has_vehicule")
-	private byte hasVehicule;
+	@Column(name = "has_vehicule")
+	private Boolean hasVehicule;
 
-	@Column(name="last_name", nullable=false, length=45)
+	@Column(name = "last_name", nullable = false, length = 45)
 	private String lastName;
 
-	@Column(name="living_space", precision=10, scale=2)
+	@Column(name = "living_space", precision = 5, scale = 2)
 	private BigDecimal livingSpace;
 
-	@Column(nullable=false, length=45)
+	@Column(nullable = false, length = 45)
 	private String password;
 
-	@Column(nullable=false, length=45)
+	@Column(nullable = false, length = 45)
 	private String pays;
 
-	@Column(name="postal_code", nullable=false, length=10)
+	@Column(name = "postal_code", nullable = false, length = 10)
 	private String postalCode;
 
 	@Lob
 	private String presentation;
 
-	@Column(nullable=false, length=1)
+	@Column(nullable=false)
+	@Enumerated(EnumType.STRING)
 	private RoleEnum role;
 
-	@Column(length=1)
+	@Enumerated(EnumType.STRING)
 	private StatusEnum status;
 
-	@Column(nullable=false, length=45)
+	@Column(nullable = false, length = 45)
 	private String telephone;
 
-	//bi-directional many-to-one association to AnimalEntity
-	@OneToMany(mappedBy="user")
+	// bi-directional many-to-one association to AnimalEntity
+	@OneToMany(mappedBy = "user")
 	private List<AnimalEntity> animals;
 
-	//bi-directional many-to-one association to ServiceEntity
-	@OneToMany(mappedBy="user")
+	// bi-directional many-to-one association to ServiceEntity
+	@OneToMany(mappedBy = "user")
 	private List<ServiceEntity> services;
 
 	public UserEntity() {
@@ -140,20 +154,29 @@ public class UserEntity implements Serializable {
 		this.firstName = firstName;
 	}
 
-	public byte getHasGarden() {
+	public Boolean getHasGarden() {
 		return this.hasGarden;
 	}
 
-	public void setHasGarden(byte hasGarden) {
-		this.hasGarden = hasGarden;
+	public void setHasGarden(Boolean hasGarden) {
+		if (hasGarden == null) {
+			this.hasGarden = Boolean.FALSE;
+		} else {
+			this.hasGarden = hasGarden;
+		}
 	}
 
-	public byte getHasVehicule() {
+	public Boolean getHasVehicule() {
 		return this.hasVehicule;
 	}
 
-	public void setHasVehicule(byte hasVehicule) {
-		this.hasVehicule = hasVehicule;
+	public void setHasVehicule(Boolean hasVehicule) {
+		if (hasVehicule == null) {
+			this.hasVehicule = Boolean.FALSE;
+		} else {
+			this.hasVehicule = hasVehicule;
+		}
+
 	}
 
 	public String getLastName() {
@@ -237,14 +260,14 @@ public class UserEntity implements Serializable {
 	}
 
 	public AnimalEntity addAnimal(AnimalEntity animal) {
-		getAnimals().add(animal);
+		this.getAnimals().add(animal);
 		animal.setUser(this);
 
 		return animal;
 	}
 
 	public AnimalEntity removeAnimal(AnimalEntity animal) {
-		getAnimals().remove(animal);
+		this.getAnimals().remove(animal);
 		animal.setUser(null);
 
 		return animal;
@@ -259,14 +282,14 @@ public class UserEntity implements Serializable {
 	}
 
 	public ServiceEntity addService(ServiceEntity service) {
-		getServices().add(service);
+		this.getServices().add(service);
 		service.setUser(this);
 
 		return service;
 	}
 
 	public ServiceEntity removeService(ServiceEntity service) {
-		getServices().remove(service);
+		this.getServices().remove(service);
 		service.setUser(null);
 
 		return service;

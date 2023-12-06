@@ -29,7 +29,7 @@ public class BookingEntity implements Serializable {
 	@Column(name="start_date", nullable=false)
 	private Date startDate;
 
-	@Column(name="total_price", nullable=false, precision=10, scale=2)
+	@Column(name="total_price", nullable=false, precision=7, scale=2)
 	private BigDecimal totalPrice;
 
 	//bi-directional many-to-one association to AnimalEntity
