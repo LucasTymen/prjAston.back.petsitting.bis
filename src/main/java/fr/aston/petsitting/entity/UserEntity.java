@@ -74,8 +74,9 @@ public class UserEntity implements Serializable {
 	@Column(name = "postal_code", nullable = false, length = 10)
 	private String postalCode;
 
+	@Column(name = "about")
 	@Lob
-	private String presentation;
+	private String about;
 
 	@Column(nullable=false)
 	@Enumerated(EnumType.STRING)
@@ -219,12 +220,12 @@ public class UserEntity implements Serializable {
 		this.postalCode = postalCode;
 	}
 
-	public String getPresentation() {
-		return this.presentation;
+	public String getAbout() {
+		return this.about;
 	}
 
-	public void setPresentation(String presentation) {
-		this.presentation = presentation;
+	public void setAbout(String presentation) {
+		this.about = presentation;
 	}
 
 	public RoleEnum getRole() {
