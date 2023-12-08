@@ -10,13 +10,16 @@ import fr.aston.petsitting.repository.IServiceRepository;
 
 @Service
 public class ServiceSitterService {
-	
+
 	@Autowired
-	private IServiceRepository repository; 
-	
-	public List<ServiceEntity> getServicesByUserId(int userId){
+	private IServiceRepository repository;
+
+	public List<ServiceEntity> getServicesByUserId(int userId) {
 		return this.repository.findAllByUserId(userId);
-		 
 	}
-	
+
+	public ServiceEntity createService(ServiceEntity serviceEntity) {
+		return this.repository.save(serviceEntity);
+	}
+
 }

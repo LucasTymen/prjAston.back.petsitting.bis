@@ -13,6 +13,13 @@ public class ServiceModele {
 	private ServiceEnum type;
 	private Integer userId;
 
+	public Boolean hasUserId() {
+		if (this.getUserId() != null) {
+			return true;
+		}
+		return false;
+	}
+
 	public int getId() {
 		return this.id;
 	}
