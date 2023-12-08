@@ -22,4 +22,8 @@ public class ServiceSitterService {
 		return this.repository.save(serviceEntity);
 	}
 
+	public void deleteServiceById(int id) {
+		this.repository.deleteById(id);
+	}
+
 }

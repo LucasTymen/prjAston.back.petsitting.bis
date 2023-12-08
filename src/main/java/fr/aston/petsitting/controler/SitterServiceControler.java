@@ -38,7 +38,7 @@ public class SitterServiceControler {
 
 	@PostMapping("/create")
 	public ResponseEntity<?> createSitterServiceControler(@RequestBody ServiceModele serviceModele) {
-		if (serviceModele== null|| !serviceModele.hasUserId()) {
+		if (serviceModele == null || !serviceModele.hasUserId()) {
 			ResponseModele responseModele = new ResponseModele();
 			responseModele.setStatus(400);
 			responseModele.setMessage("Données invalides");
@@ -49,7 +49,15 @@ public class SitterServiceControler {
 				.createService(ServiceEntityModelHandler.createEntityFromModel(serviceModele, this.userService));
 		ServiceModele resultatModel = ServiceEntityModelHandler.createModelFromEntity(resultat);
 		return ResponseEntity.ok(resultatModel);
+	}
 
+	@GetMapping("/delete/{id}")
+	public ResponseEntity<?> deleteSitterServiceById(@PathVariable("id") int id) {
+		this.service.deleteServiceById(id);
+		ResponseModele responseModele = new ResponseModele();
+		responseModele.setStatus(202);
+		responseModele.setMessage("Service supprimé");
+		return ResponseEntity.status(HttpStatus.ACCEPTED).body(responseModele);
 	}
 
 }
