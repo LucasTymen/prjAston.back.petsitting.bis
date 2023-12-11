@@ -12,29 +12,27 @@ import fr.aston.petsitting.repository.IServiceRepository;
 
 @Service
 public class ServiceSitterService {
-	
-	
+
 	@Autowired
-	private IServiceRepository repository; 
-	
-	public List<ServiceEntity> getServicesByUserId(int userId){
+	private IServiceRepository repository;
+
+	public List<ServiceEntity> getServicesByUserId(int userId) {
 		return this.repository.findAllByUserId(userId);
-		 
 	}
-	
-	public List<ServiceEntity> findAllByServiceType(BigDecimal minPrice, BigDecimal maxPrice, ServiceEnum type){
-		if(minPrice == null) {
-			minPrice=BigDecimal.valueOf(0);
+
+	public List<ServiceEntity> findAllByServiceType(BigDecimal minPrice, BigDecimal maxPrice, ServiceEnum type) {
+		if (minPrice == null) {
+			minPrice = BigDecimal.valueOf(0);
 		}
-		return this.repository.findAllByDailyPriceBetweenAndType(minPrice, maxPrice,type);
+		return this.repository.findAllByDailyPriceBetweenAndType(minPrice, maxPrice, type);
 	}
-	private void test (){
-		
-		
+
+	public ServiceEntity createService(ServiceEntity serviceEntity) {
+		return this.repository.save(serviceEntity);
 	}
-public void testtt (){
-		
-		
+
+	public void deleteServiceById(int id) {
+		this.repository.deleteById(id);
 	}
 
 }

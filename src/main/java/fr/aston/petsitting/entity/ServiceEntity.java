@@ -41,10 +41,9 @@ public class ServiceEntity implements Serializable {
 	@Column(nullable = false, length = 125)
 	private String name;
 
-
 	@Column(nullable = false)
 	@Enumerated(EnumType.STRING)
-	
+
 	private ServiceEnum type;
 
 	// bi-directional many-to-one association to BookingEntity
