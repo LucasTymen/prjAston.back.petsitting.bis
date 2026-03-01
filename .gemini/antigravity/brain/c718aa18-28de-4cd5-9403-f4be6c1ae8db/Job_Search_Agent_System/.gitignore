@@ -1,0 +1,36 @@
+# Environnement
+.env
+.env.local
+.env.*.local
+
+# Dépendances
+node_modules/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Données sensibles / Ressources
+resources/cv_base_datas_pour_candidatures.json
+resources/*.json
+!resources/base.json
+
+# Logs & Sorties
+logs/
+*.log
+outputs/
+htmlcov/
+.coverage
+.cache/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db

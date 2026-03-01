@@ -1,0 +1,150 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.6, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Lucas\.gemini\antigravity\brain\c718aa18-28de-4cd5-9403-f4be6c1ae8db\Job_Search_Agent_System
+configfile: pytest.ini
+plugins: cov-7.0.0
+collected 35 items
+
+tests\test_atv_validator.py ..........                                   [ 28%]
+tests\test_compiler.py ..                                                [ 34%]
+tests\test_cv_generator.py ...                                           [ 42%]
+tests\test_generators.py .....                                           [ 57%]
+tests\test_matching.py ...                                               [ 65%]
+tests\test_orchestrator.py F.                                            [ 71%]
+tests\test_scraper.py ......                                             [ 88%]
+tests\test_strategy.py FF..
+ERROR: Coverage failure: total of 99 is less than fail-under=100
+                                                                         [100%]
+
+================================== FAILURES ===================================
+___________________ test_orchestrator_run_pipeline_success ____________________
+
+mock_valider = <MagicMock name='valider_donnees' id='1983349131168'>
+mock_follow_up = <MagicMock name='FollowUpStrategy' id='1983353506992'>
+mock_canal = <MagicMock name='CanalApplication' id='1983353510784'>
+mock_entreprise = <MagicMock name='EntrepriseScraper' id='1983353514576'>
+mock_email = <MagicMock name='EmailEngine' id='1983353518368'>
+mock_lm = <MagicMock name='LmCoordinator' id='1983353718832'>
+mock_cv = <MagicMock name='CvAtvGenerator' id='1983353722624'>
+mock_matching = <MagicMock name='MatchingEngine' id='1983353726416'>
+mock_scraper = <MagicMock name='ScraperOffre' id='1983353730208'>
+mock_base_json = {'candidat': {'nom': 'Test'}}
+
+>   ???
+
+C:\Users\Lucas\.gemini\antigravity\scratch\job_agent\tests\test_orchestrator.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <core.orchestrator.Orchestrator object at 0x000001CDC91C2F60>
+url_offre = 'http://test.com'
+
+    def run_pipeline(self, url_offre: str) -> FinalOutput:
+        # [1] SCRAPER_OFFRE
+        scraper = ScraperOffre()
+        offre_data = scraper.process(url_offre)
+    
+        # [2] MATCHING_ENGINE
+        matching = MatchingEngine(self.base_json)
+        match_data = matching.process(offre_data)
+    
+        # [3] CV_ATV_GENERATOR
+        cv_gen = CvAtvGenerator(self.base_json)
+        cv_texte = cv_gen.process(match_data)
+    
+        # ATV CHECK: CV
+        is_valid, msg = valider_donnees(self.base_json, cv_texte)
+        if not is_valid:
+            raise ValueError(f"╔chec de la validation ATV sur le CV: {msg}")
+    
+        # [4] LM_COORDINATOR
+        lm_gen = LmCoordinator(self.base_json)
+        lm_texte = lm_gen.process(cv_texte, match_data)
+    
+        # [6] ENTREPRISE_SCRAPER
+        ent_scraper = EntrepriseScraper()
+        ent_data = ent_scraper.process("http://entreprise-mock.com")
+    
+        # [5] EMAIL_ENGINE
+        email_gen = EmailEngine()
+        email_data = email_gen.process(cv_texte, lm_texte)
+    
+        # [7] CANAL_APPLICATION
+        canal = CanalApplication()
+        canal_data = canal.process(ent_data)
+    
+        # [8] FOLLOW_UP_STRATEGY
+        follow = FollowUpStrategy()
+        follow_data = follow.process("aujourd'hui")
+    
+        action = f"Envoyer candidature via {canal_data.get('canal_recommande')} Ó {ent_data.get('email_trouve')}"
+    
+        # Compilation finale
+        return FinalOutput(
+            offre=offre_data.model_dump(),
+>           matching=match_data.model_dump(),
+                     ^^^^^^^^^^^^^^^^^^^^^
+            documents={
+                "cv_texte": cv_texte,
+                "lm_texte": lm_texte,
+                "email_j0": email_data.get("email_j0", ""),
+                "email_j4": email_data.get("email_j4", ""),
+                "email_j10": email_data.get("email_j10", "")
+            },
+            canal_application=canal_data,
+            email_trouve=ent_data,
+            next_action=action,
+            date_relance_j4=follow_data.get("date_relance_j4", ""),
+            date_relance_j10=follow_data.get("date_relance_j10", ""),
+            ATV_CHECK=ATVCheck(
+                donnees_verifiees=True,
+                hallucination_detectee=False,
+                commentaire="Validation OK"
+            )
+        )
+E       AttributeError: 'dict' object has no attribute 'model_dump'
+
+core\orchestrator.py:59: AttributeError
+______________________ test_canal_application_with_email ______________________
+
+    def test_canal_application_with_email():
+        agent = CanalApplication()
+        res = agent.process({'email': 'test@test.com'})
+>       assert res['canal'] == 'Email direct'
+               ^^^^^^^^^^^^
+E       KeyError: 'canal'
+
+tests\test_strategy.py:7: KeyError
+_______________________ test_canal_application_no_email _______________________
+
+    def test_canal_application_no_email():
+        agent = CanalApplication()
+        res = agent.process({})
+>       assert res['canal'] == 'Formulaire ou LinkedIn'
+               ^^^^^^^^^^^^
+E       KeyError: 'canal'
+
+tests\test_strategy.py:13: KeyError
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.12.6-final-0 _______________
+
+Name                    Stmts   Miss  Cover   Missing
+-----------------------------------------------------
+agents\__init__.py          0      0   100%
+agents\generator.py        42      0   100%
+agents\matching.py         20      0   100%
+agents\scraper.py          36      0   100%
+agents\strategy.py         20      2    90%   9, 18
+core\__init__.py            0      0   100%
+core\atv_validator.py      40      0   100%
+core\compiler.py           10      0   100%
+core\models.py             30      0   100%
+core\orchestrator.py       32      0   100%
+-----------------------------------------------------
+TOTAL                     230      2    99%
+Coverage HTML written to dir htmlcov
+FAIL Required test coverage of 100% not reached. Total coverage: 99.13%
+=========================== short test summary info ===========================
+FAILED tests/test_orchestrator.py::test_orchestrator_run_pipeline_success - A...
+FAILED tests/test_strategy.py::test_canal_application_with_email - KeyError: ...
+FAILED tests/test_strategy.py::test_canal_application_no_email - KeyError: 'c...
+======================== 3 failed, 32 passed in 1.95s =========================

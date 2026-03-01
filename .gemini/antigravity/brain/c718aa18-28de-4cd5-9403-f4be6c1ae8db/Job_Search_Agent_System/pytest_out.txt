@@ -1,0 +1,30 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.6, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Lucas\.gemini\antigravity\brain\c718aa18-28de-4cd5-9403-f4be6c1ae8db\Job_Search_Agent_System
+configfile: pytest.ini
+plugins: cov-7.0.0
+collected 5 items
+
+tests\test_generators.py .....
+ERROR: Coverage failure: total of 23 is less than fail-under=100
+                                                                         [100%]
+
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.12.6-final-0 _______________
+
+Name                    Stmts   Miss  Cover   Missing
+-----------------------------------------------------
+agents\__init__.py          0      0   100%
+agents\generator.py        42     23    45%   8, 16-50
+agents\matching.py         20     20     0%   4-34
+agents\scraper.py          36     36     0%   4-62
+agents\strategy.py         10     10     0%   4-14
+core\__init__.py            0      0   100%
+core\atv_validator.py      40     40     0%   4-64
+core\models.py             30      0   100%
+core\orchestrator.py       32     32     0%   4-57
+-----------------------------------------------------
+TOTAL                     210    161    23%
+Coverage HTML written to dir htmlcov
+FAIL Required test coverage of 100% not reached. Total coverage: 23.33%
+============================== 5 passed in 0.50s ==============================

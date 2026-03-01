@@ -1,0 +1,36 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.6, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Lucas\.gemini\antigravity\brain\c718aa18-28de-4cd5-9403-f4be6c1ae8db\Job_Search_Agent_System
+configfile: pytest.ini
+plugins: cov-7.0.0
+collected 34 items
+
+tests\test_atv_validator.py ..........                                   [ 29%]
+tests\test_compiler.py ..                                                [ 35%]
+tests\test_cv_generator.py ...                                           [ 44%]
+tests\test_generators.py .....                                           [ 58%]
+tests\test_matching.py .                                                 [ 61%]
+tests\test_orchestrator.py ..                                            [ 67%]
+tests\test_scraper.py ......                                             [ 85%]
+tests\test_strategy.py .....                                             [100%]
+
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.12.6-final-0 _______________
+
+Name                    Stmts   Miss  Cover   Missing
+-----------------------------------------------------
+agents\__init__.py          0      0   100%
+agents\generator.py        42      0   100%
+agents\matching.py          6      0   100%
+agents\scraper.py          36      0   100%
+agents\strategy.py         20      0   100%
+core\__init__.py            0      0   100%
+core\atv_validator.py      40      0   100%
+core\compiler.py           10      0   100%
+core\models.py             30      0   100%
+core\orchestrator.py       32      0   100%
+-----------------------------------------------------
+TOTAL                     216      0   100%
+Coverage HTML written to dir htmlcov
+Required test coverage of 100% reached. Total coverage: 100.00%
+============================= 34 passed in 1.80s ==============================

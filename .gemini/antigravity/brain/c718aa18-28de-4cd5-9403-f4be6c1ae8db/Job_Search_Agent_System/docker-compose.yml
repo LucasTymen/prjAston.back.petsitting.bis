@@ -1,0 +1,43 @@
+services:
+  job_telegram:
+    build: .
+    image: job_search_agent
+    container_name: job_telegram_bot
+    restart: unless-stopped
+    command: python -m scheduler.telegram_bot
+    env_file: .env
+    volumes:
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+      - ./resources:/app/resources
+
+  job_agent:
+    build: .
+    image: job_search_agent
+    container_name: job_search_agent
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+      - ./resources:/app/resources
+    command: tail -f /dev/null
+
+  cron:
+    image: job_search_agent
+    container_name: job_agent_cron
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+      - ./resources:/app/resources
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "0 */2 * * * cd /app && python -m scheduler.cron_runner --mode both --sources wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec --max 10 >> /app/logs/cron.log 2>&1" > /tmp/cron.txt && \
+        echo "0 8 * * * cd /app && python -m scheduler.followup_runner >> /app/logs/followup.log 2>&1" >> /tmp/cron.txt && \
+        crontab /tmp/cron.txt
+        cron -f

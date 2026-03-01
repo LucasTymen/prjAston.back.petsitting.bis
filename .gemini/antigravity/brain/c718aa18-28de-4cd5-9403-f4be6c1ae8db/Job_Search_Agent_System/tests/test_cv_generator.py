@@ -1,0 +1,80 @@
+import pytest
+from agents.generator import CvAtvGenerator
+from core.models import MatchingOutput
+
+@pytest.fixture
+def mock_base_json():
+    return {
+        "meta": {
+            "nom": "Lucas Tymen",
+            "version": "2.4"
+        },
+        "experiences": [
+            {
+                "entite": "SquidResearch",
+                "role": "Développeur Fullstack",
+                "periode": "2024 - en cours",
+                "bullet_cv_court": ["Bullet 1"]
+            },
+            {
+                "entite": "A.P.S.I.",
+                "role_it": "Responsable IT",
+                "periode_it": "2000–2022",
+                "periode_growth": "2015–2022",
+                "bullet_cv_court": {
+                    "version_strategique": ["Bullet Strat"],
+                    "version_operationnelle": ["Bullet Op"]
+                }
+            },
+            {
+                "entite": "Other",
+                "bullet_cv_court": None # Test safety
+            }
+        ]
+    }
+
+def test_cv_atv_generator_process(mock_base_json):
+    generator = CvAtvGenerator(mock_base_json)
+    match_data = MatchingOutput(
+        persona_selectionne="backend_django",
+        secteur_detecte="growth_seo_data_dev",
+        exposition_seniorite="Strategique",
+        score=85,
+        next_action="POSTULER",
+        arguments_actives=["Arg1"],
+        mots_cles_ats=["Python"]
+    )
+    result = generator.process(match_data)
+    assert isinstance(result, dict)
+    assert result["nom"] == "Lucas Tymen"
+    assert result["experiences"][1]["periode"] == "2000–2022"
+    assert result["experiences"][1]["bullets"] == ["Bullet Strat"]
+
+def test_cv_atv_generator_operationnelle(mock_base_json):
+    generator = CvAtvGenerator(mock_base_json)
+    match_data = MatchingOutput(
+        persona_selectionne="technicien_it",
+        secteur_detecte="it_support",
+        exposition_seniorite="Operationnelle",
+        score=85,
+        next_action="POSTULER",
+        arguments_actives=[],
+        mots_cles_ats=[]
+    )
+    result = generator.process(match_data)
+    assert result["experiences"][1]["periode"] == "2015–2022"
+    assert result["experiences"][1]["bullets"] == ["Bullet Op"]
+
+def test_cv_atv_generator_missing_fields(mock_base_json):
+    generator = CvAtvGenerator(mock_base_json)
+    match_data = MatchingOutput(
+        persona_selectionne="unknown",
+        secteur_detecte="it_support",
+        exposition_seniorite="Operationnelle",
+        score=0,
+        next_action="PASSER",
+        arguments_actives=[],
+        mots_cles_ats=[]
+    )
+    result = generator.process(match_data)
+    assert result["experiences"][2]["bullets"] == []

@@ -1,0 +1,63 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.6, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Lucas\.gemini\antigravity\brain\c718aa18-28de-4cd5-9403-f4be6c1ae8db\Job_Search_Agent_System
+configfile: pytest.ini
+plugins: cov-7.0.0
+collected 29 items / 2 errors
+
+=================================== ERRORS ====================================
+_________________ ERROR collecting tests/test_orchestrator.py _________________
+venv\Lib\site-packages\_pytest\python.py:507: in importtestmodule
+    mod = import_path(
+venv\Lib\site-packages\_pytest\pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+C:\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:935: in _load_unlocked
+    ???
+venv\Lib\site-packages\_pytest\assertion\rewrite.py:197: in exec_module
+    exec(co, module.__dict__)
+C:\Users\Lucas\.gemini\antigravity\scratch\job_agent\tests\test_orchestrator.py:3: in <module>
+    ???
+core\orchestrator.py:8: in <module>
+    from agents.strategy import CanalApplication, FollowUpStrategy
+E     File "C:\Users\Lucas\.gemini\antigravity\brain\c718aa18-28de-4cd5-9403-f4be6c1ae8db\Job_Search_Agent_System\agents\strategy.py", line 17
+E       if date_application == 'aujourd\\'hui':
+E                                            ^
+E   SyntaxError: unterminated string literal (detected at line 17)
+___________________ ERROR collecting tests/test_strategy.py ___________________
+venv\Lib\site-packages\_pytest\python.py:507: in importtestmodule
+    mod = import_path(
+venv\Lib\site-packages\_pytest\pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+C:\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:935: in _load_unlocked
+    ???
+venv\Lib\site-packages\_pytest\assertion\rewrite.py:197: in exec_module
+    exec(co, module.__dict__)
+tests\test_strategy.py:2: in <module>
+    from agents.strategy import CanalApplication, FollowUpStrategy
+E     File "C:\Users\Lucas\.gemini\antigravity\brain\c718aa18-28de-4cd5-9403-f4be6c1ae8db\Job_Search_Agent_System\agents\strategy.py", line 17
+E       if date_application == 'aujourd\\'hui':
+E                                            ^
+E   SyntaxError: unterminated string literal (detected at line 17)
+=========================== short test summary info ===========================
+ERROR tests/test_orchestrator.py
+ERROR tests/test_strategy.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!
+============================== 2 errors in 2.64s ==============================

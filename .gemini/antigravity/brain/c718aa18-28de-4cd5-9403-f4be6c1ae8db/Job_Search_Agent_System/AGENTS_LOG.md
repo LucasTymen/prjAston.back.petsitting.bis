@@ -1,0 +1,136 @@
+# Journal de bord — Agents IA
+
+> Log partagé pour la coordination entre agents IA. Chaque agent consulte ce fichier avant d'agir et y consigne ses actions.
+
+---
+
+## Format d'entrée
+
+```markdown
+### [YYYY-MM-DD] Agent: <nom ou type>
+**Action :** <description courte>
+**Fichiers modifiés/créés :** liste
+**Blocage / Attention :** si pertinent
+**Prochaine étape suggérée :**
+```
+
+---
+
+## Historique
+
+### [2026-02-28] Agent: Cursor (Auto)
+**Action :** Phase 1 — Déploiement Contabo + cron + scheduler  
+**Fichiers créés :**
+- `scheduler/dedup.py` — déduplication SQLite
+- `scheduler/job_queue.py` — découverte offres WTJ/LinkedIn/Indeed
+- `scheduler/cron_runner.py` — point d'entrée cron
+- `storage/db.py` — persistance candidatures
+- `Dockerfile`, `docker-compose.yml`, `crontab`, `.env.example`, `.dockerignore`
+
+**Principe respecté :** Aucune modification des fichiers existants (core/, agents/). Projet Antigravity intact.
+
+**Prochaine étape suggérée :** Phase 2 — LLM client + MatchingEngine (embeddings, cosine similarity)
+
+---
+
+### [2026-02-28] Agent: Cursor (Auto)
+**Action :** Création du triplet AGENTS_* pour coordination entre agents IA  
+**Fichiers créés :**
+- `AGENTS_README.md` — index du triplet
+- `AGENTS_ROADMAP.md` — règles, architecture, workflow
+- `AGENTS_LOG.md` — journal (ce fichier)
+- `AGENTS_TODO.md` — TODO partagée phases 2–4 + backlog
+
+**Objectif :** Permettre à tout agent IA de reprendre le projet en lisant le contexte et l’historique.
+
+---
+
+### [2026-03-01] Agent: Antigravity
+**Action :** Migration vers OpenAI (Phase 2) & Intégration Gmail Drafting
+**Fichiers modifiés/créés :**
+- core/llm_client.py — Client unifié OpenAI (Chat & Embeddings)
+- gents/drafting.py — Mise en brouillon Gmail via IMAP
+- gents/generator.py — Adaptation sujet email et structure JSON large
+- gents/matching.py — Adaptation persona Art/Vente
+- core/orchestrator.py — Intégration de la mise en brouillon
+- equirements.txt — Ajout openai et 
+umpy
+- process_test_offers.py — Script de test pour les 3 offres Art/Vente
+
+**Attention :** Nécessite OPENAI_API_KEY, GMAIL_USER et GMAIL_APP_PASSWORD dans .env.
+**Prochaine étape suggérée :** Brancher ScraperOffre sur OpenAIClient pour une extraction réelle.
+
+### [2026-03-01] Agent: Antigravity — Benchmark Process
+**Action :** Exécution complète du pipeline sur 3 offres Art/Vente.
+**Résultats :**
+- **Nombre d'offres :** 3
+- **Durée totale :** 17.55 secondes
+- **Moyenne :** ~5.8s / offre
+- **Intelligence :** OpenAI gpt-4o-mini (Scraping + Matching)
+- **Drafting :** Agent IMAP prêt (attente identifiants GMAIL)
+- **Validation ATV :** Passée avec succès (0 hallucination détectée sur cette session)
+
+**Observations :** Le passage à OpenAI a permis une extraction réelle et un matching plus fin. La latence reste très faible (< 6s par candidature complète).
+
+### [2026-03-01] Agent: Antigravity — Phase 3 Complete (PDF & Refinement)
+**Action :** Déploiement du générateur de CV PDF et raffinement des messages.
+**Résultats :**
+- **Génération PDF :** gents/cv_pdf.py opérationnel (ReportLab).
+- **Raffinement LLM :** EmailEngine utilise OpenAI pour personnaliser les accroches.
+- **Drafting :** Les brouillons Gmail incluent désormais le CV PDF en pièce jointe.
+- **Test Offres :** 3 nouvelles candidatures mises en brouillon avec succès.
+
+**Note :** Le système est désormais en version "Premium" avec des documents ATS-friendly et des messages personnalisés.
+
+---
+
+### [2026-03-01] Agent: Cursor (Auto)
+**Action :** job_discoverer + cron_runner — URLs configurables (WTTJ, France Travail)  
+**Fichiers créés :**
+- `scheduler/job_discoverer.py` — discover_jobs(source, max_jobs), SOURCES avec URLs multiples par source
+**Fichiers modifiés :**
+- `scheduler/cron_runner.py` — utilise job_discoverer au lieu de job_queue, run_pipeline(url, create_draft=False), --max
+
+**Principe :** Pas d'URL unique hardcodée — SOURCES avec liste d'URLs par source.
+
+**Note :** WTTJ peut retourner 0 si la page est SPA (JS-rendered). Fallback /fr/jobs?page=1 ajouté. Playwright/Selenium possible en Phase ultérieure.
+
+**Prochaine étape suggérée :** Test local dry-run, puis déploiement Contabo via scp.
+
+---
+
+### [2026-03-01] Agent: Cursor (Auto)
+**Action :** Corrections tests + Playwright WTTJ SPA  
+**Fichiers modifiés :**
+- `tests/test_matching.py` — MatchingEngine déterministe, tests _score_all_personas et _detect_secteur
+- `tests/test_coverage_gap.py` — remplacement cosine_similarity par _score_all_personas / _detect_secteur
+- `scheduler/job_discoverer.py` — WTTJ via Playwright (SPA React), France Travail reste requests
+- `requirements.txt` — ajout playwright>=1.40.0
+
+**Résultat dry-run :** wttj — 3 offres trouvées (Ornikar, Pigment, Aesthe). Tests matching passent.
+
+**Prochaine étape suggérée :** Déploiement Contabo quand CI vert.
+
+---
+
+### [2026-03-01] Agent: Cursor (Auto)
+**Action :** Découverte pilotée par personas (job-prospection-tool / Mistral)  
+**Fichiers créés :**
+- `scheduler/persona_queries.py` — `get_persona_queries(base_json)` depuis strategie_secteur / personas_specialises
+- `api/squid_client.py` — client `offer_submit()` pour API SquidResearch (optionnel)
+**Fichiers modifiés :**
+- `scheduler/job_discoverer.py` — `discover_jobs(..., base_json=None)` utilise les requêtes personas
+- `scheduler/cron_runner.py` — passe base_json à discover_jobs
+- `.env.example` — SQUID_API_URL, SQUID_API_TOKEN
+
+**Principe :** Requêtes de découverte dérivées des personas (detection_mots_cles). Fallback DORKS_MISTRAL. Compatible job-prospection-tool et Agent Orchestrateur Mistral.
+
+**Résultat dry-run :** offres "support", "technicien", "administrateur" au lieu de "growth" uniquement.
+
+---
+
+### [2026-03-01] Agent: Cursor (Auto)
+**Action :** Fix run_both + filtre POSTULER + followup_runner J+4/J+10
+**Fichiers créés :** `scheduler/followup_runner.py` — cron relances J+4/J+10 via Gmail drafts
+**Fichiers modifiés :** cron_runner (run_both), orchestrator (emails), models (FinalOutput.emails), csv_exporter (JSON), job_scanner_runner (format csv|json), Dockerfile, docker-compose, crontab, DEPLOIEMENT.md
+

@@ -1,0 +1,148 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.6, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Lucas\.gemini\antigravity\brain\c718aa18-28de-4cd5-9403-f4be6c1ae8db\Job_Search_Agent_System
+configfile: pytest.ini
+plugins: cov-7.0.0
+collected 36 items
+
+tests\test_atv_validator.py ..........                                   [ 27%]
+tests\test_compiler.py ..                                                [ 33%]
+tests\test_cv_generator.py ...                                           [ 41%]
+tests\test_generators.py .....                                           [ 55%]
+tests\test_matching.py FF.                                               [ 63%]
+tests\test_orchestrator.py F.                                            [ 69%]
+tests\test_scraper.py ......                                             [ 86%]
+tests\test_strategy.py .....                                             [100%]
+
+================================== FAILURES ===================================
+___________________ test_matching_engine_process_high_score ___________________
+
+mock_base_json = {'exposition_seniorite': 'Senior (5 ans+)', 'persona_engine': {'mots_cles': ['Python', 'SQL', 'Airflow', 'GCP'], 'prof...P.", 'Reduction des temps de pipeline de 40%.'], 'debut': '2020-01', 'entreprise': 'TechCorp', 'fin': '2023-12', ...}]}
+
+>   ???
+E   AssertionError: assert 'Expert Python' == 'IngÚnieur Data Fullstack'
+E     
+E     - IngÚnieur Data Fullstack
+E     + Expert Python
+
+C:\Users\Lucas\.gemini\antigravity\scratch\job_agent\tests\test_matching.py:43: AssertionError
+___________________ test_matching_engine_process_low_score ____________________
+
+mock_base_json = {'exposition_seniorite': 'Senior (5 ans+)', 'persona_engine': {'mots_cles': ['Python', 'SQL', 'Airflow', 'GCP'], 'prof...P.", 'Reduction des temps de pipeline de 40%.'], 'debut': '2020-01', 'entreprise': 'TechCorp', 'fin': '2023-12', ...}]}
+
+>   ???
+E   AssertionError: assert 95 < 45
+E    +  where 95 = MatchingOutput(persona_selectionne='Expert Python', secteur_detecte='Tech', exposition_seniorite='Senior', score=95, arguments_actives=['Usage intensif de Python', 'ExpÚrience Backend'], mots_cles_ats=['Python', 'FastAPI', 'TDD']).score
+
+C:\Users\Lucas\.gemini\antigravity\scratch\job_agent\tests\test_matching.py:66: AssertionError
+___________________ test_orchestrator_run_pipeline_success ____________________
+
+mock_valider = <MagicMock name='valider_donnees' id='2099713137440'>
+mock_follow_up = <MagicMock name='FollowUpStrategy' id='2099717315696'>
+mock_canal = <MagicMock name='CanalApplication' id='2099708844544'>
+mock_entreprise = <MagicMock name='EntrepriseScraper' id='2099717323232'>
+mock_email = <MagicMock name='EmailEngine' id='2099717638384'>
+mock_lm = <MagicMock name='LmCoordinator' id='2099717642176'>
+mock_cv = <MagicMock name='CvAtvGenerator' id='2099717646064'>
+mock_matching = <MagicMock name='MatchingEngine' id='2099717649568'>
+mock_scraper = <MagicMock name='ScraperOffre' id='2099717751824'>
+mock_base_json = {'candidat': {'nom': 'Test'}}
+
+>   ???
+
+C:\Users\Lucas\.gemini\antigravity\scratch\job_agent\tests\test_orchestrator.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <core.orchestrator.Orchestrator object at 0x000001E8E0EDBC80>
+url_offre = 'http://test.com'
+
+    def run_pipeline(self, url_offre: str) -> FinalOutput:
+        # [1] SCRAPER_OFFRE
+        scraper = ScraperOffre()
+        offre_data = scraper.process(url_offre)
+    
+        # [2] MATCHING_ENGINE
+        matching = MatchingEngine(self.base_json)
+        match_data = matching.process(offre_data)
+    
+        # [3] CV_ATV_GENERATOR
+        cv_gen = CvAtvGenerator(self.base_json)
+        cv_texte = cv_gen.process(match_data)
+    
+        # ATV CHECK: CV
+        is_valid, msg = valider_donnees(self.base_json, cv_texte)
+        if not is_valid:
+            raise ValueError(f"╔chec de la validation ATV sur le CV: {msg}")
+    
+        # [4] LM_COORDINATOR
+        lm_gen = LmCoordinator(self.base_json)
+        lm_texte = lm_gen.process(cv_texte, match_data)
+    
+        # [6] ENTREPRISE_SCRAPER
+        ent_scraper = EntrepriseScraper()
+        ent_data = ent_scraper.process("http://entreprise-mock.com")
+    
+        # [5] EMAIL_ENGINE
+        email_gen = EmailEngine()
+        email_data = email_gen.process(cv_texte, lm_texte)
+    
+        # [7] CANAL_APPLICATION
+        canal = CanalApplication()
+        canal_data = canal.process(ent_data)
+    
+        # [8] FOLLOW_UP_STRATEGY
+        follow = FollowUpStrategy()
+        follow_data = follow.process("aujourd'hui")
+    
+        action = f"Envoyer candidature via {canal_data.get('canal_recommande')} Ó {ent_data.get('email_trouve')}"
+    
+        # Compilation finale
+        return FinalOutput(
+            offre=offre_data.model_dump(),
+>           matching=match_data.model_dump(),
+                     ^^^^^^^^^^^^^^^^^^^^^
+            documents={
+                "cv_texte": cv_texte,
+                "lm_texte": lm_texte,
+                "email_j0": email_data.get("email_j0", ""),
+                "email_j4": email_data.get("email_j4", ""),
+                "email_j10": email_data.get("email_j10", "")
+            },
+            canal_application=canal_data,
+            email_trouve=ent_data,
+            next_action=action,
+            date_relance_j4=follow_data.get("date_relance_j4", ""),
+            date_relance_j10=follow_data.get("date_relance_j10", ""),
+            ATV_CHECK=ATVCheck(
+                donnees_verifiees=True,
+                hallucination_detectee=False,
+                commentaire="Validation OK"
+            )
+        )
+E       AttributeError: 'dict' object has no attribute 'model_dump'
+
+core\orchestrator.py:59: AttributeError
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.12.6-final-0 _______________
+
+Name                    Stmts   Miss  Cover   Missing
+-----------------------------------------------------
+agents\__init__.py          0      0   100%
+agents\generator.py        42      0   100%
+agents\matching.py          6      0   100%
+agents\scraper.py          36      0   100%
+agents\strategy.py         20      0   100%
+core\__init__.py            0      0   100%
+core\atv_validator.py      40      0   100%
+core\compiler.py           10      0   100%
+core\models.py             30      0   100%
+core\orchestrator.py       32      0   100%
+-----------------------------------------------------
+TOTAL                     216      0   100%
+Coverage HTML written to dir htmlcov
+Required test coverage of 100% reached. Total coverage: 100.00%
+=========================== short test summary info ===========================
+FAILED tests/test_matching.py::test_matching_engine_process_high_score - Asse...
+FAILED tests/test_matching.py::test_matching_engine_process_low_score - Asser...
+FAILED tests/test_orchestrator.py::test_orchestrator_run_pipeline_success - A...
+======================== 3 failed, 33 passed in 2.00s =========================

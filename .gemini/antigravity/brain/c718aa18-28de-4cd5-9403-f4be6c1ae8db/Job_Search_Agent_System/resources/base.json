@@ -1,0 +1,29 @@
+{
+    "candidat": {
+        "nom": "Jean Martin",
+        "email": "jean.martin@example.com",
+        "telephone": "+33612345678"
+    },
+    "persona_engine": {
+        "profil_dominant": "Ingénieur Data Fullstack",
+        "mots_cles": [
+            "Python",
+            "SQL",
+            "Airflow",
+            "GCP"
+        ]
+    },
+    "exposition_seniorite": "Senior (5 ans+)",
+    "reference_canonique_periodes_roles": [
+        {
+            "entreprise": "TechCorp",
+            "role": "Data Engineer",
+            "debut": "2020-01",
+            "fin": "2023-12",
+            "bullet_cv_court": [
+                "Mise en place d'un datalake sur GCP.",
+                "Reduction des temps de pipeline de 40%."
+            ]
+        }
+    ]
+}
