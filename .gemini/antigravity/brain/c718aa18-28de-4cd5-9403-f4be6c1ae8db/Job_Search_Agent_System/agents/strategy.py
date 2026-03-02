@@ -22,8 +22,10 @@ class FollowUpStrategy:
             except ValueError:
                 d = datetime.now()
         return {
+            'date_relance_j2': (d + timedelta(days=2)).strftime('%Y-%m-%d'),
             'date_relance_j4': (d + timedelta(days=4)).strftime('%Y-%m-%d'),
-            'date_relance_j10': (d + timedelta(days=10)).strftime('%Y-%m-%d')
+            'date_relance_j7': (d + timedelta(days=7)).strftime('%Y-%m-%d'),
+            'date_relance_j9': (d + timedelta(days=9)).strftime('%Y-%m-%d')  # J2 bis
         }
 
 class ReportAgent:
@@ -55,8 +57,10 @@ class ReportAgent:
             canal_application=canal,
             email_trouve=email,
             next_action=matching.next_action,
+            date_relance_j2=follow_up.get('date_relance_j2', ''),
             date_relance_j4=follow_up.get('date_relance_j4', ''),
-            date_relance_j10=follow_up.get('date_relance_j10', ''),
+            date_relance_j7=follow_up.get('date_relance_j7', ''),
+            date_relance_j9=follow_up.get('date_relance_j9', ''),
             ATV_CHECK=ATVCheck(
                 donnees_verifiees=True,
                 hallucination_detectee=False,

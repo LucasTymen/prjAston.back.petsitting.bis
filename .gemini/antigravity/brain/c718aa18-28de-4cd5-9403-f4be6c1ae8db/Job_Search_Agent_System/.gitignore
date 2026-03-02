@@ -17,15 +17,17 @@ __pycache__/
 *.swp
 *.swo
 
-# Données sensibles / Ressources
-resources/cv_base_datas_pour_candidatures.json
-resources/*.json
+# Données sensibles / Ressources (CV, profils, clés…)
+resources/
 !resources/base.json
 
 # Logs & Sorties
 logs/
 *.log
 outputs/
+*.db
+test_access.txt
+=20.7
 htmlcov/
 .coverage
 .cache/

@@ -16,8 +16,10 @@ def test_canal_application_no_email():
 def test_follow_up_strategy_valid_date():
     agent = FollowUpStrategy()
     res = agent.process('2024-01-01')
+    assert res['date_relance_j2'] == '2024-01-03'
     assert res['date_relance_j4'] == '2024-01-05'
-    assert res['date_relance_j10'] == '2024-01-11'
+    assert res['date_relance_j7'] == '2024-01-08'
+    assert res['date_relance_j9'] == '2024-01-10'
 
 def test_follow_up_strategy_today():
     agent = FollowUpStrategy()
@@ -30,3 +32,5 @@ def test_follow_up_strategy_invalid_date():
     res = agent.process('invalid-date')
     now_j4 = (datetime.now() + timedelta(days=4)).strftime('%Y-%m-%d')
     assert res['date_relance_j4'] == now_j4
+    assert 'date_relance_j2' in res
+    assert 'date_relance_j9' in res

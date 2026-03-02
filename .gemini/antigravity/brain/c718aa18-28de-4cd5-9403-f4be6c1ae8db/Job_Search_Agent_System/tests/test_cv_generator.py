@@ -14,7 +14,8 @@ def mock_base_json():
                 "entite": "SquidResearch",
                 "role": "Développeur Fullstack",
                 "periode": "2024 - en cours",
-                "bullet_cv_court": ["Bullet 1"]
+                "bullet_cv_court": ["Bullet 1"],
+                "priorite_secteur": {"it_support": "non pertinent"}
             },
             {
                 "entite": "A.P.S.I.",
@@ -24,11 +25,14 @@ def mock_base_json():
                 "bullet_cv_court": {
                     "version_strategique": ["Bullet Strat"],
                     "version_operationnelle": ["Bullet Op"]
-                }
+                },
+                "priorite_secteur": {"it_support": "principale"}
             },
             {
                 "entite": "Other",
-                "bullet_cv_court": None # Test safety
+                "periode": "1999-2000",
+                "bullet_cv_court": None,
+                "priorite_secteur": {"it_support": "secondaire"}
             }
         ]
     }
@@ -47,7 +51,8 @@ def test_cv_atv_generator_process(mock_base_json):
     result = generator.process(match_data)
     assert isinstance(result, dict)
     assert result["nom"] == "Lucas Tymen"
-    assert result["experiences"][1]["periode"] == "2000–2022"
+    # Secteur growth : pas de filtre, exp[1] = A.P.S.I., periode_growth
+    assert result["experiences"][1]["periode"] == "2015–2022"
     assert result["experiences"][1]["bullets"] == ["Bullet Strat"]
 
 def test_cv_atv_generator_operationnelle(mock_base_json):
@@ -62,8 +67,9 @@ def test_cv_atv_generator_operationnelle(mock_base_json):
         mots_cles_ats=[]
     )
     result = generator.process(match_data)
-    assert result["experiences"][1]["periode"] == "2015–2022"
-    assert result["experiences"][1]["bullets"] == ["Bullet Op"]
+    # Secteur it_support : A.P.S.I. en tête, periode_it (2000–2022) pour les 22 ans
+    assert result["experiences"][0]["periode"] == "2000–2022"
+    assert result["experiences"][0]["bullets"] == ["Bullet Op"]
 
 def test_cv_atv_generator_missing_fields(mock_base_json):
     generator = CvAtvGenerator(mock_base_json)
@@ -77,4 +83,5 @@ def test_cv_atv_generator_missing_fields(mock_base_json):
         mots_cles_ats=[]
     )
     result = generator.process(match_data)
-    assert result["experiences"][2]["bullets"] == []
+    # it_support : filtre principale/secondaire → APSI (0) + Other (1) ; Other a bullets []
+    assert result["experiences"][1]["bullets"] == []

@@ -5,12 +5,18 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from agents.drafting import GmailDraftingAgent
+from core.utils import attachment_filenames
+
+# Charte nommage : CV_Lucas_Tymen_{société}_{intitulé}.pdf
+ENTREPRISE = "Orange Travel"
+TITRE_POSTE = "Responsable SEO (F/H)"
 
 def main():
     agent = GmailDraftingAgent()
-    
+    cv_name, lm_name = attachment_filenames(ENTREPRISE, TITRE_POSTE)
+
     to_email = 'contact@travel-orange.com'
-    subject = 'Candidature – Responsable SEO (F/H) – Lucas Tymen'
+    subject = f'Candidature – {TITRE_POSTE} – Lucas Tymen'
     
     # Corps avec DONNÉES RÉELLES (Tél, LinkedIn)
     body = '''Bonjour,
@@ -30,8 +36,8 @@ LUCAS TYMEN
 06 62 09 82 57
 https://www.linkedin.com/in/lucas-tymen-310255123/'''
 
-    cv_path = os.path.join('outputs', 'cvs', 'CV_Lucas_Tymen_Orange_Travel.pdf')
-    lm_path = os.path.join('outputs', 'lms', 'LM_Lucas_Tymen_Orange_Travel.pdf')
+    cv_path = os.path.join('outputs', 'cvs', cv_name)
+    lm_path = os.path.join('outputs', 'lms', lm_name)
     
     attachments = []
     if os.path.exists(cv_path):

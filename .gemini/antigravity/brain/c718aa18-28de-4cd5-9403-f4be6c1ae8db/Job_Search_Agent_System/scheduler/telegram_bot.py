@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -14,6 +15,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 load_dotenv(PROJECT_ROOT / ".env")
 import subprocess
 from collections import defaultdict
@@ -24,6 +27,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
 
 # Config
@@ -34,6 +39,8 @@ ALLOWED_USER_IDS = set(
 DB_PATH = os.getenv("DB_PATH") or str(PROJECT_ROOT / "storage" / "applications.db")
 LOG_PATH = os.getenv("LOG_PATH") or str(PROJECT_ROOT / "logs" / "cron.log")
 FOLLOWUP_LOG = os.getenv("FOLLOWUP_LOG") or str(PROJECT_ROOT / "logs" / "followup.log")
+RESOURCES_DIR = PROJECT_ROOT / "resources"
+STORAGE_DIR = PROJECT_ROOT / "storage"
 
 RATE_LIMIT = 10
 RATE_WINDOW = 60
@@ -101,30 +108,181 @@ def tail_log(path: str, n: int = 25) -> str:
         return "".join(lines[-n:]) if lines else "(vide)"
     except Exception as e:
         log.warning("tail_log %s: %s", path[:50], e)
-        return "(erreur lecture)"
+        return "(erreur lecture)")
+
+
+def _load_base_json() -> dict:
+    """Charge le profil candidat (base_real, cv_base, base.json)."""
+    for name in ("base_real.json", "cv_base_datas_pour_candidatures.json", "base.json"):
+        path = RESOURCES_DIR / name
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    raise FileNotFoundError("Aucun profil dans resources/ (base_real.json, base.json)")
+
+
+def _run_pipeline_sync(job_url: str, create_draft: bool) -> tuple:
+    """
+    Lance l'orchestrateur (extraction, matching, génération CV/LM/emails, optionnel brouillon).
+    Retourne (result, None) en succès ou (None, message_erreur).
+    """
+    try:
+        base_json = _load_base_json()
+    except FileNotFoundError as e:
+        return (None, str(e))
+    try:
+        from core.orchestrator import Orchestrator
+        from storage.db import save_application
+
+        orchestrator = Orchestrator(base_json=base_json)
+        result = orchestrator.run_pipeline(job_url, create_draft=create_draft)
+        save_application(result, job_url, db_path=str(STORAGE_DIR))
+        return (result, None)
+    except Exception as e:
+        log.exception("Pipeline %s", job_url[:60])
+        return (None, str(e))
+
+
+@guard
+async def cmd_pipeline(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """
+    Lance le pipeline de candidature sur une URL.
+    Usage : /pipeline <url> [draft]
+    Ex. /pipeline https://...  ou  /pipeline https://... draft  (crée le brouillon Gmail)
+    """
+    text = (update.message.text or "").strip()
+    parts = text.split(maxsplit=2)
+    if len(parts) < 2:
+        await update.message.reply_text(
+            "Usage : /pipeline <url> [draft]\n"
+            "Ex. /pipeline https://www.welcometothejungle.com/...\n"
+            "Avec 'draft' en fin : crée aussi le brouillon Gmail."
+        )
+        return
+    url = parts[1].strip()
+    create_draft = len(parts) > 2 and parts[2].lower() == "draft"
+    if not url.startswith(("http://", "https://")):
+        await update.message.reply_text("L'URL doit commencer par http:// ou https://")
+        return
+
+    await update.message.reply_text("Pipeline en cours (extraction, matching, génération)...")
+    try:
+        result, err = await asyncio.to_thread(_run_pipeline_sync, url, create_draft)
+    except Exception as e:
+        await update.message.reply_text(f"Erreur : {e}")
+        return
+    if err:
+        await update.message.reply_text(f"Échec pipeline : {err}")
+        return
+    offre = result.offre or {}
+    matching = result.matching or {}
+    entreprise = offre.get("entreprise", "?")
+    titre = offre.get("titre", "?")
+    score = matching.get("score", "—")
+    action = result.next_action
+    msg = f"Pipeline terminé.\n\n{entreprise} — {titre}\nScore : {score} | Action : {action}"
+    if create_draft and result.next_action == "POSTULER":
+        msg += "\n\nBrouillon Gmail créé."
+    await update.message.reply_text(msg)
+
+
+# Mots-clés pour le chatbot (langage naturel)
+_PIPELINE_KEYWORDS = (
+    "candidater", "candidature", "pipeline", "lance", "lancer", "run", "traite", "traiter",
+    "cette offre", "cette annonce", "cet offre", "cette url", "ce lien", "pour cette"
+)
+_DRAFT_KEYWORDS = ("brouillon", "draft", "gmail", "mail", "email", "envoie", "envoyer", "crée le brouillon")
+
+# Regex URL (http/https, évite les espaces en fin)
+_URL_RE = re.compile(r"https?://[^\s\]\)]+", re.IGNORECASE)
+
+
+def _parse_chat_intent(text: str) -> tuple[str | None, bool]:
+    """
+    Extrait une URL et l'intention (créer brouillon ou non) depuis un message en langage naturel.
+    Retourne (url, create_draft) ou (None, False) si pas d'URL ou pas d'intent pipeline.
+    """
+    if not text or not text.strip():
+        return (None, False)
+    t = text.strip().lower()
+    urls = _URL_RE.findall(text)
+    url = urls[0] if urls else None
+    if not url:
+        return (None, False)
+    want_pipeline = any(kw in t for kw in _PIPELINE_KEYWORDS)
+    want_draft = any(kw in t for kw in _DRAFT_KEYWORDS)
+    return (url, want_draft) if want_pipeline else (None, False)
+
+
+@guard
+async def on_chat_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """
+    Chatbot : interprète les messages en langage naturel.
+    Ex. "Candidater sur https://..." ou "Lance le pipeline pour cette offre https://... et crée le brouillon"
+    """
+    if not update.message or not update.message.text:
+        return
+    text = update.message.text.strip()
+    if text.startswith("/"):
+        return
+    url, create_draft = _parse_chat_intent(text)
+    if not url:
+        await update.message.reply_text(
+            "Tu peux m’envoyer une URL d’offre et par exemple :\n"
+            "• « Candidater sur [url] »\n"
+            "• « Lance le pipeline pour [url] »\n"
+            "• « Candidater sur [url] et crée le brouillon Gmail »\n\n"
+            "Ou utiliser la commande : /pipeline <url> draft"
+        )
+        return
+    await update.message.reply_text("Pipeline en cours (extraction, matching, génération)...")
+    try:
+        result, err = await asyncio.to_thread(_run_pipeline_sync, url, create_draft)
+    except Exception as e:
+        await update.message.reply_text(f"Erreur : {e}")
+        return
+    if err:
+        await update.message.reply_text(f"Échec pipeline : {err}")
+        return
+    offre = result.offre or {}
+    matching = result.matching or {}
+    entreprise = offre.get("entreprise", "?")
+    titre = offre.get("titre", "?")
+    score = matching.get("score", "—")
+    action = result.next_action
+    msg = f"Pipeline terminé.\n\n{entreprise} — {titre}\nScore : {score} | Action : {action}"
+    if create_draft and result.next_action == "POSTULER":
+        msg += "\n\nBrouillon Gmail créé."
+    await update.message.reply_text(msg)
 
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Répond toujours : si non autorisé, envoie ton ID pour que tu l'ajoutes au .env (aucun bot tiers)."""
-    user = update.effective_user
-    if not user:
-        return
-    user_id = user.id
-    if rate_limited(user_id):
-        await update.message.reply_text("Rate limit atteint.")
-        return
-    if is_allowed(user_id):
-        await update.message.reply_text("Bot actif.")
-        log.info("CMD start — user=%s", user_id)
-        return
-    # Pas encore autorisé : on lui donne son ID pour qu'il l'ajoute au .env (pas de bot tiers)
-    await update.message.reply_text(
-        f"Ton ID Telegram : {user_id}\n\n"
-        f"Ajoute dans ton fichier .env :\n"
-        f"TELEGRAM_ALLOWED_IDS={user_id}\n\n"
-        f"Puis redémarre le bot. Ensuite /start répondra « Bot actif. »"
-    )
-    log.info("ID envoyé à user=%s (pas encore autorisé)", user_id)
+    try:
+        user = update.effective_user
+        if not user:
+            return
+        user_id = user.id
+        if rate_limited(user_id):
+            await update.message.reply_text("Rate limit atteint.")
+            return
+        if is_allowed(user_id):
+            await update.message.reply_text("Bot actif.")
+            log.info("CMD start — user=%s", user_id)
+            return
+        # Pas encore autorisé : on lui donne son ID pour qu'il l'ajoute au .env (pas de bot tiers)
+        await update.message.reply_text(
+            f"Ton ID Telegram : {user_id}\n\n"
+            f"Ajoute dans ton fichier .env :\n"
+            f"TELEGRAM_ALLOWED_IDS={user_id}\n\n"
+            f"Puis redémarre le bot. Ensuite /start répondra « Bot actif. »"
+        )
+        log.info("ID envoyé à user=%s (pas encore autorisé)", user_id)
+    except Exception as e:
+        log.exception("cmd_start")
+        try:
+            await update.message.reply_text(f"Erreur : {e}")
+        except Exception:
+            pass
 
 
 @guard
@@ -376,6 +534,9 @@ async def callback_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     msg = (
         "Job Search Agent — Panneau de controle\n\n"
+        "Tu peux discuter en langage naturel : envoie une URL et dis par ex. "
+        "« Candidater sur [url] » ou « Lance le pipeline pour [url] et crée le brouillon ».\n\n"
+        "/pipeline <url> [draft] — Lancer l'orchestrateur (candidature + option brouillon Gmail)\n"
         "/status — Candidatures recentes\n"
         "/offres — Dernieres offres scannees\n"
         "/relances — Relances J+4/J+10 a venir\n"
@@ -388,16 +549,36 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg)
 
 
+async def _error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Capture les erreurs non gérées pour éviter que le bot crash."""
+    log.exception("Erreur non geree : %s", ctx.error)
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text("Erreur interne. Verifie les logs.")
+        except Exception:
+            pass
+
+
 def main():
     if not TOKEN:
         raise ValueError("TELEGRAM_BOT_TOKEN manquant dans .env")
 
     log.info("Bot demarre — users autorises : %s (envoie /start a ton bot pour obtenir ton ID)", ALLOWED_USER_IDS or "aucun")
 
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = (
+        ApplicationBuilder()
+        .token(TOKEN)
+        .connect_timeout(30)
+        .read_timeout(30)
+        .get_updates_connect_timeout(30)
+        .get_updates_read_timeout(60)
+        .build()
+    )
+    app.add_error_handler(_error_handler)
 
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("pipeline", cmd_pipeline))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("offres", cmd_offres))
     app.add_handler(CommandHandler("relances", cmd_relances))
@@ -406,6 +587,7 @@ def main():
     app.add_handler(CommandHandler("followup_logs", cmd_followup_logs))
     app.add_handler(CommandHandler("scan", cmd_scan))
     app.add_handler(CallbackQueryHandler(callback_scan, pattern="^scan_"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_chat_message))
 
     app.run_polling(drop_pending_updates=True)
 

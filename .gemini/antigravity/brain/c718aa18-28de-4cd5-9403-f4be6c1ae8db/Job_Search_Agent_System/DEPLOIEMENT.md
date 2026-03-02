@@ -2,6 +2,38 @@
 
 **Règle :** ne jamais toucher aux containers SquidResearch.
 
+---
+
+## 0. Premier commit et push (bon emplacement)
+
+Le dépôt Git a sa racine **au-dessus** du projet (ex. `C:\Users\Lucas`). Tu dois être **dans le dossier du projet** pour n’ajouter que les fichiers Job_Search_Agent_System.
+
+**Vérifier l’emplacement :**
+```bash
+pwd
+# Doit se terminer par .../Job_Search_Agent_System
+git rev-parse --show-toplevel
+# Affiche la racine du repo (souvent ton home)
+```
+
+**Commit uniquement le projet (sans toucher au README ou autres dossiers du repo) :**
+```bash
+# Toujours depuis Job_Search_Agent_System
+git add .
+git status
+# Vérifier : seuls AGENTS_*, agents/, core/, scheduler/, scripts/, tests/ doivent être listés (pas ../../../../../README.md ni dossiers home)
+git commit -m "Job Search Agent: séquence J0→J2→J1→J2, CV structure, directives rédaction, placeholders, nommage PJ, Telegram /pipeline + chatbot. AGENTS_LOG + ROADMAP."
+git push
+```
+
+**Lien avec la prod Contabo :** la prod **n’est pas** un `git pull` sur le serveur. Elle est alimentée par **tar + SSH** (ou le script PowerShell) depuis ta machine. Donc :
+1. **Commit + push** = sauvegarde dans le dépôt distant (origin).
+2. **Déploiement prod** = lancer le script de déploiement **depuis ce même dossier** (après commit) pour envoyer le code vers Contabo. Le serveur reçoit une copie du contenu du dossier, pas un clone Git.
+
+Après un push, pour mettre la prod à jour : exécuter `.\scripts\contabo_ssh_chain.ps1` (PowerShell) ou la commande Tar + SSH du §2, **depuis Job_Search_Agent_System**.
+
+---
+
 **Scripts :**
 - Depuis ta machine : `.\scripts\contabo_ssh_chain.ps1` (PowerShell) ou Tar + SSH ci-dessous
 - Sur le serveur après SSH : `bash /opt/job_search_agent/scripts/contabo_safe_deploy.sh`
@@ -77,7 +109,7 @@ docker logs -f job_telegram_bot
 
 **Mode both :** scan + matching → filtre POSTULER uniquement → pipeline full (CV, LM, emails) → persistance `applications.db` et `storage/outputs/`
 
-**Followup :** relances J+4 et J+10 via brouillons Gmail (lit `applications.db`)
+**Followup :** relances J+2, J+4, J+7, J+9 (séquence J0→J2→J1→J1→J2) via brouillons Gmail (lit `applications.db`)
 
 ## Si le run freeze ou bloque
 
@@ -93,7 +125,7 @@ python -m scheduler.cron_runner --mode full   # Pipeline complet sans pré-filtr
 python -m scheduler.cron_runner --mode both   # Scan + filtre POSTULER + pipeline (défaut cron)
 python -m scheduler.cron_runner --mode both --scan-format json
 
-# Relances J+4/J+10
+# Relances J+2, J+4, J+7, J+9
 python -m scheduler.followup_runner --dry-run
 python -m scheduler.followup_runner
 ```

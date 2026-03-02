@@ -32,8 +32,10 @@ class FinalOutput(BaseModel):
     documents: Dict[str, str]
     canal_application: Dict[str, str]
     email_trouve: Dict[str, str]
-    emails: Optional[Dict[str, str]] = None  # email_j0, email_j4, email_j10, sujet
+    emails: Optional[Dict[str, str]] = None  # email_j0, email_j2, email_j1, email_j1_bis, email_j2_bis, sujet
     next_action: str
+    date_relance_j2: str
     date_relance_j4: str
-    date_relance_j10: str
+    date_relance_j7: str
+    date_relance_j9: str  # J2 bis
     ATV_CHECK: ATVCheck

@@ -134,3 +134,27 @@ umpy
 **Fichiers créés :** `scheduler/followup_runner.py` — cron relances J+4/J+10 via Gmail drafts
 **Fichiers modifiés :** cron_runner (run_both), orchestrator (emails), models (FinalOutput.emails), csv_exporter (JSON), job_scanner_runner (format csv|json), Dockerfile, docker-compose, crontab, DEPLOIEMENT.md
 
+---
+
+### [2026-03-02] Agent: Cursor (Auto)
+**Action :** Séquence emails J0→J2→J1→J1→J2, structure CV, directives rédaction, placeholders, nommage PJ, Telegram pipeline + chatbot
+
+**Fichiers créés :**
+- `core/utils.py` — `sanitize_placeholders()`, `attachment_filenames()` (charte CV/LM_{société}_{intitulé}.pdf)
+- `tests/test_utils.py` — tests sanitization et nommage
+- `scripts/simulate_cv_support_it.py` — simulation CV Support IT (base_real)
+
+**Fichiers modifiés :**
+- `agents/generator.py` — REDACTION_DIRECTIVES (ton formel/chaleureux, pas « Bonjour », Monsieur/Madame, 0% hallucination, pas de placeholders) ; LmCoordinator/EmailEngine(offre, contact_name) ; structure CV markdown + render_cv_markdown(..., final=True) ; it_support : periode_it, filtre expériences, competences_detaillees, tri APSI
+- `core/orchestrator.py` — passage offre/contact_name aux générateurs ; create_draft avec sanitize_placeholders + attachment_filenames ; cv_markdown en final=True
+- `scheduler/followup_runner.py` — relances J+2, J+4, J+7, J+9 (J2, J1, J1_bis, J2_bis)
+- `core/models.py` — FinalOutput : date_relance_j2/j4/j7/j9, emails (email_j2_bis)
+- `agents/strategy.py` — FollowUpStrategy/ReportAgent : 4 dates relance
+- `scheduler/telegram_bot.py` — `/pipeline <url> [draft]` (orchestrateur + save_application) ; chatbot langage naturel (MessageHandler, _parse_chat_intent, mots-clés candidater/pipeline/brouillon)
+- `scripts/send_application.py` — charte nommage via attachment_filenames
+- Tests : test_generators, test_orchestrator, test_cv_generator, test_strategy, test_compiler
+
+**Règles :** Pas de placeholder laissé si donnée absente (vide) ; nommage PJ strict _société_intitulé ; logs IA dans AGENTS_LOG + roadmap dans AGENTS_ROADMAP.
+
+**Prochaine étape suggérée :** Génération PDF avec noms charte dans le flux (orchestrator ou script) pour que les brouillons aient les pièces jointes.
+

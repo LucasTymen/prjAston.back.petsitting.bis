@@ -1,6 +1,6 @@
 """
-Cron dédié aux relances J+4 et J+10.
-Lance séparément du cron principal.
+Cron dédié aux relances : J+2 (J2), J+4 (J1), J+7 (J1 bis), J+9 (J2 bis).
+Séquence : J0 → J2 → J1 → J1 → J2.
 Usage : python -m scheduler.followup_runner [--dry-run]
 """
 import argparse
@@ -32,9 +32,11 @@ def _get_db_path() -> Path:
 
 def run_followups(db_path: Path | None = None, dry_run: bool = False) -> int:
     """
-    Relances J+4 et J+10 à partir des candidatures en base.
-    - J+4 : status='J0' et (today - created_at).days == 4
-    - J+10 : status='relance_j4' et (today - created_at).days == 10
+    Relances J0 → J2 → J1 → J1_bis → J2 à partir des candidatures en base.
+    - J+2 : status in ('J0','envoyee') et delta == 2 → email_j2, status relance_j2
+    - J+4 : status == 'relance_j2' et delta == 4 → email_j1, status relance_j1
+    - J+7 : status == 'relance_j1' et delta == 7 → email_j1_bis, status relance_j1_bis
+    - J+9 : status == 'relance_j1_bis' et delta >= 9 → email_j2_bis, status relance_j2_bis
     """
     db_file = db_path or _get_db_path()
     if not db_file.exists():
@@ -49,7 +51,7 @@ def run_followups(db_path: Path | None = None, dry_run: bool = False) -> int:
     rows = conn.execute("""
         SELECT id, job_url, status, result_json, created_at
         FROM applications
-        WHERE status IN ('J0', 'envoyee', 'relance_j4')
+        WHERE status IN ('J0', 'envoyee', 'relance_j2', 'relance_j1', 'relance_j1_bis')
         AND result_json IS NOT NULL
     """).fetchall()
 
@@ -84,25 +86,43 @@ def run_followups(db_path: Path | None = None, dry_run: bool = False) -> int:
 
         entreprise = offre.get("entreprise", "?")
         titre = offre.get("titre", "?")
-        mail_j4 = (emails.get("email_j4") or "").strip()
-        mail_j10 = (emails.get("email_j10") or "").strip()
+        mail_j2 = (emails.get("email_j2") or "").strip()
+        mail_j1 = (emails.get("email_j1") or "").strip()
+        mail_j1_bis = (emails.get("email_j1_bis") or "").strip()
+        mail_j2_bis = (emails.get("email_j2_bis") or "").strip()
         sujet = (emails.get("sujet") or f"Relance candidature — {titre}").strip()
 
         delta = (today - date_cand).days
 
-        if delta == 4 and status in ("J0", "envoyee") and mail_j4:
-            log.info("Relance J+4 -> %s (%s)", entreprise, email_contact)
+        if delta == 2 and status in ("J0", "envoyee") and mail_j2:
+            log.info("Relance J+2 -> %s (%s)", entreprise, email_contact)
             if not dry_run:
-                _send_followup(email_contact, sujet, mail_j4, "j4")
-                conn.execute("UPDATE applications SET status='relance_j4' WHERE id=?", (id_,))
+                _send_followup(email_contact, sujet, mail_j2, "j2")
+                conn.execute("UPDATE applications SET status='relance_j2' WHERE id=?", (id_,))
                 conn.commit()
                 sent += 1
 
-        elif delta >= 10 and status == "relance_j4" and mail_j10:
-            log.info("Relance J+10 -> %s (%s)", entreprise, email_contact)
+        elif delta == 4 and status == "relance_j2" and mail_j1:
+            log.info("Relance J+4 (J1) -> %s (%s)", entreprise, email_contact)
             if not dry_run:
-                _send_followup(email_contact, sujet, mail_j10, "j10")
-                conn.execute("UPDATE applications SET status='relance_j10' WHERE id=?", (id_,))
+                _send_followup(email_contact, sujet, mail_j1, "j1")
+                conn.execute("UPDATE applications SET status='relance_j1' WHERE id=?", (id_,))
+                conn.commit()
+                sent += 1
+
+        elif delta == 7 and status == "relance_j1" and mail_j1_bis:
+            log.info("Relance J+7 (J1 bis) -> %s (%s)", entreprise, email_contact)
+            if not dry_run:
+                _send_followup(email_contact, sujet, mail_j1_bis, "j1_bis")
+                conn.execute("UPDATE applications SET status='relance_j1_bis' WHERE id=?", (id_,))
+                conn.commit()
+                sent += 1
+
+        elif delta >= 9 and status == "relance_j1_bis" and mail_j2_bis:
+            log.info("Relance J+9 (J2 bis) -> %s (%s)", entreprise, email_contact)
+            if not dry_run:
+                _send_followup(email_contact, sujet, mail_j2_bis, "j2_bis")
+                conn.execute("UPDATE applications SET status='relance_j2_bis' WHERE id=?", (id_,))
                 conn.commit()
                 sent += 1
 
@@ -118,14 +138,15 @@ def _send_followup(to_email: str, subject: str, body: str, type_: str) -> None:
     from agents.drafting import GmailDraftingAgent
 
     agent = GmailDraftingAgent()
-    prefix = "J+4" if type_ == "j4" else "J+10"
+    prefix_map = {"j2": "J+2", "j1": "J+4 (J1)", "j1_bis": "J+7 (J1 bis)", "j2_bis": "J+9 (J2 bis)"}
+    prefix = prefix_map.get(type_, type_)
     full_subject = f"Re: {subject}" if not subject.startswith("Re:") else subject
     agent.create_draft(to_email=to_email, subject=full_subject, body=body, attachment_paths=[])
     log.info("Brouillon %s créé pour %s", prefix, to_email)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Relances J+4 / J+10")
+    parser = argparse.ArgumentParser(description="Relances J+2, J+4, J+7, J+9 (séquence J0→J2→J1→J1→J2)")
     parser.add_argument("--dry-run", action="store_true", help="Simule sans envoyer")
     parser.add_argument("--db", help="Chemin vers applications.db")
     args = parser.parse_args()

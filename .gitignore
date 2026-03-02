@@ -1,0 +1,15 @@
+# Limiter le suivi à Job_Search_Agent_System (évite scan AppData + "trop de changements")
+/*
+!.gitignore
+!.gemini/
+.gemini/*
+!.gemini/antigravity/
+.gemini/antigravity/*
+!.gemini/antigravity/brain/
+.gemini/antigravity/brain/*
+!.gemini/antigravity/brain/c718aa18-28de-4cd5-9403-f4be6c1ae8db/
+.gemini/antigravity/brain/c718aa18-28de-4cd5-9403-f4be6c1ae8db/*
+!.gemini/antigravity/brain/c718aa18-28de-4cd5-9403-f4be6c1ae8db/Job_Search_Agent_System/
+
+/Documents/NetBeansProjects/AngularJSPhoneCat/nbproject/private/
+node_modules

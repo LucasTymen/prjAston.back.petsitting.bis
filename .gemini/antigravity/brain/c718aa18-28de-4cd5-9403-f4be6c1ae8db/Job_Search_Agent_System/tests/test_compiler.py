@@ -11,8 +11,10 @@ def test_compiler_valid_data():
         "canal_application": {"canal": "email"},
         "email_trouve": {"contact": "test@test.com"},
         "next_action": "Envoyer email",
+        "date_relance_j2": "2024-01-03",
         "date_relance_j4": "2024-01-05",
-        "date_relance_j10": "2024-01-11",
+        "date_relance_j7": "2024-01-08",
+        "date_relance_j9": "2024-01-10",
         "ATV_CHECK": {"donnees_verifiees": True, "hallucination_detectee": False, "commentaire": "OK"}
     }
     result = compiler.process(valid_data)

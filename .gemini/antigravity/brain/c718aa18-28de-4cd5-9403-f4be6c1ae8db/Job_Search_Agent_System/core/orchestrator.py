@@ -3,8 +3,9 @@ Orchestrateur Hybrid - Combine extraction LLM et matching déterministe Python.
 """
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from core.models import FinalOutput, ScraperOutput, MatchingOutput, ATVCheck
+from core.utils import sanitize_placeholders, attachment_filenames
 from agents.scraper import ScraperOffre, EntrepriseScraper
 from agents.matching import MatchingEngine
 from agents.generator import CvAtvGenerator, LmCoordinator, EmailEngine
@@ -39,16 +40,19 @@ class Orchestrator:
 
         # 4. Génération (GROQ/LLM sur profil ANONYMISÉ)
         print("Étape 3: Génération des assets humanisés...")
-        cv_data = self.cv_gen.process(match_data)
-        lm_text = self.lm_gen.process(match_data)
-        emails = self.email_gen.process(match_data)
+        offre_d = job_data.model_dump()
+        contact_name = entreprise_data.get("contact_name") or entreprise_data.get("recruteur")
+        cv_data = self.cv_gen.process(match_data, offre=offre_d)
+        cv_markdown = self.cv_gen.render_cv_markdown(cv_data, offre=offre_d, final=True)
+        lm_text = self.lm_gen.process(match_data, offre=offre_d, contact_name=contact_name)
+        emails = self.email_gen.process(match_data, offre=offre_d, contact_name=contact_name)
 
         # Correction de l'instanciation de FinalOutput
         output = FinalOutput(
-            offre=job_data.model_dump(),
+            offre=offre_d,
             matching=match_data.model_dump(),
             documents={
-                "cv": "Données CV prêtes",
+                "cv": cv_markdown,
                 "lm": lm_text
             },
             canal_application={
@@ -58,8 +62,10 @@ class Orchestrator:
             email_trouve={k: str(v) for k, v in entreprise_data.items()},
             emails=emails,
             next_action=match_data.next_action,
-            date_relance_j4="N/A",
-            date_relance_j10="N/A",
+            date_relance_j2=(datetime.now() + timedelta(days=2)).strftime('%Y-%m-%d'),
+            date_relance_j4=(datetime.now() + timedelta(days=4)).strftime('%Y-%m-%d'),
+            date_relance_j7=(datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d'),
+            date_relance_j9=(datetime.now() + timedelta(days=9)).strftime('%Y-%m-%d'),
             ATV_CHECK=ATVCheck(
                 donnees_verifiees=True, 
                 hallucination_detectee=False, 
@@ -69,13 +75,29 @@ class Orchestrator:
 
         # 5. Draft Gmail (Optionnel)
         if create_draft and match_data.next_action == "POSTULER":
-             # Passage positionnel pour éviter tout conflit de nom d'argument
-             self.drafter.create_draft(
-                 entreprise_data.get("email_trouve"),
-                 emails.get("sujet") or f"Candidature - {job_data.titre}",
-                 emails.get("email_j0") or "Bonjour...",
-                 [] 
-             )
-             print("Brouillon créé avec succès.")
+            titre = job_data.titre or ""
+            entreprise = job_data.entreprise or ""
+            reference = offre_d.get("reference", "")
+            contact_name = contact_name or ""
+            raw_sujet = emails.get("sujet") or f"Candidature - {titre}"
+            raw_body = emails.get("email_j0") or ""
+            sujet = sanitize_placeholders(raw_sujet, titre_poste=titre, entreprise=entreprise, reference=reference, prenom_recruteur=contact_name)
+            body = sanitize_placeholders(raw_body, titre_poste=titre, entreprise=entreprise, reference=reference, prenom_recruteur=contact_name)
+            if not sujet.strip():
+                sujet = f"Candidature - {titre}" if titre else "Candidature"
+            if not body.strip():
+                body = "Monsieur, Madame,\n\nVeuillez trouver ci-joint ma candidature.\n\nCordialement,\nLucas Tymen"
+            cv_name, lm_name = attachment_filenames(entreprise, titre)
+            out_dir = getattr(self, "_output_dir", None) or os.path.join(os.path.dirname(os.path.dirname(__file__)), "outputs")
+            cv_path = os.path.join(out_dir, "cvs", cv_name)
+            lm_path = os.path.join(out_dir, "lms", lm_name)
+            attachment_paths = [p for p in [cv_path, lm_path] if os.path.exists(p)]
+            self.drafter.create_draft(
+                entreprise_data.get("email_trouve"),
+                sujet,
+                body,
+                attachment_paths
+            )
+            print("Brouillon créé avec succès.")
 
         return output

@@ -38,6 +38,7 @@ def test_orchestrator_run_pipeline_success(mock_base_json):
         mock_scraper.return_value.process.return_value = mock_scraper_data
         mock_matching.return_value.process.return_value = mock_match_obj
         mock_cv.return_value.process.return_value = {"nom": "Test"}
+        mock_cv.return_value.render_cv_markdown.return_value = "CV markdown"
         mock_lm.return_value.process.return_value = "Contenu LM"
         mock_entreprise.return_value.process.return_value = {"email_trouve": "test@test.com"}
         mock_email.return_value.process.return_value = {"email_j0": "Hello", "sujet": "Sub"}

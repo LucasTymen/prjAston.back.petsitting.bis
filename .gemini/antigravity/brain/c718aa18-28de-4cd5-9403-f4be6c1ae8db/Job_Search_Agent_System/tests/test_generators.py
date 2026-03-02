@@ -25,7 +25,7 @@ def test_lm_coordinator_process(mock_base_json):
     
     # Mock LLM chat_completion for LM
     import unittest.mock
-    with unittest.mock.patch.object(coordinator.llm, 'chat_completion', return_value={"lm_texte": "Cher Recruteur, Test User est là."}):
+    with unittest.mock.patch.object(coordinator.llm, 'chat_completion', return_value={"content": "Monsieur, Madame, Test User est là."}):
         result = coordinator.process(match_data)
         assert isinstance(result, str)
         assert "Test User" in result
@@ -45,12 +45,16 @@ def test_email_engine_process(mock_base_json):
     import unittest.mock
     with unittest.mock.patch.object(engine.llm, 'chat_completion', return_value={
         "email_j0": "Hello J0",
-        "email_j4": "Hello J4",
-        "email_j10": "Hello J10",
+        "email_j2": "Hello J2",
+        "email_j1": "Hello J1",
+        "email_j1_bis": "Hello J1 bis",
+        "email_j2_bis": "Hello J2 bis",
         "sujet": "Candidature"
     }):
         result = engine.process(match_data)
         assert isinstance(result, dict)
         assert "email_j0" in result
-        assert "email_j4" in result
-        assert "email_j10" in result
+        assert "email_j2" in result
+        assert "email_j1" in result
+        assert "email_j1_bis" in result
+        assert "email_j2_bis" in result
