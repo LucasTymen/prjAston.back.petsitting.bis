@@ -1,8 +1,8 @@
 # Job Search Agent — crontab pour déploiement manuel sur Contabo
-# 1) Toutes les 2h : scan + pipeline full (mode both)
-# 2) Quotidien 8h : relances J+4/J+10
+# 1) 4 fois/jour à 2h, 6h, 12h, 19h : scan + pipeline full (mode both)
+# 2) Quotidien 8h : relances J+2, J+4, J+7, J+9
 #
 # Installation : crontab crontab
 #
-0 */2 * * * cd /app && python -m scheduler.cron_runner --mode both --sources wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec --max 10 >> /app/logs/cron.log 2>&1
+0 2,6,12,19 * * * cd /app && python -m scheduler.cron_runner --mode both --sources wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec --max 10 >> /app/logs/cron.log 2>&1
 0 8 * * * cd /app && python -m scheduler.followup_runner >> /app/logs/followup.log 2>&1

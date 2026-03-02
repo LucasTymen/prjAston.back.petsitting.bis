@@ -50,6 +50,29 @@ def test_orchestrator_run_pipeline_success(mock_base_json):
         assert result.next_action == "POSTULER"
         assert result.matching["score"] == 95
 
-def test_orchestrator_atv_failure(mock_base_json):
-    # In the current implementation, ATV is handled in ReportAgent and doesn't raise ValueError by default
-    pass
+def test_orchestrator_atv_check(mock_base_json):
+    """ATV_CHECK reflète la validation réelle (sprint correction #1)."""
+    with patch('core.orchestrator.ScraperOffre') as mock_scraper, \
+         patch('core.orchestrator.MatchingEngine') as mock_matching, \
+         patch('core.orchestrator.CvAtvGenerator') as mock_cv, \
+         patch('core.orchestrator.LmCoordinator') as mock_lm, \
+         patch('core.orchestrator.EmailEngine') as mock_email, \
+         patch('core.orchestrator.EntrepriseScraper') as mock_entreprise:
+        mock_match = MagicMock()
+        mock_match.model_dump.return_value = {"score": 90, "persona_selectionne": "x"}
+        mock_match.next_action = "POSTULER"
+        mock_matching.return_value.process.return_value = mock_match
+        mock_scraper.return_value.process.return_value = MagicMock(
+            titre="J", entreprise="C", description_clean="", mots_cles_detectes=[],
+            niveau_poste="", probleme_detecte="", model_dump=lambda: {}
+        )
+        mock_cv.return_value.process.return_value = {"nom": "Test"}
+        mock_cv.return_value.render_cv_markdown.return_value = "CV sans chiffres"
+        mock_lm.return_value.process.return_value = "LM sans chiffres"
+        mock_entreprise.return_value.process.return_value = {}
+        mock_email.return_value.process.return_value = {"sujet": "S", "email_j0": "B"}
+
+        orch = Orchestrator(mock_base_json)
+        result = orch.run_pipeline("http://x.com")
+        assert result.ATV_CHECK.donnees_verifiees is True
+        assert result.ATV_CHECK.hallucination_detectee is False

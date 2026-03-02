@@ -20,7 +20,11 @@ class GmailDraftingAgent:
     def create_draft(self, to_email: str, subject: str, body: str, attachment_paths: list = None) -> bool:
         """
         Crée un brouillon avec des pièces jointes optionnelles.
+        Ne crée pas de brouillon si to_email est vide ou None.
         """
+        if not to_email or not str(to_email).strip():
+            print("Erreur: Destinataire (to_email) vide. Brouillon non créé.")
+            return False
         if not self.user or not self.password:
             print("Erreur: GMAIL_USER ou GMAIL_APP_PASSWORD non configuré dans .env")
             return False

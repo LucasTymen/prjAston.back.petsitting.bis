@@ -158,3 +158,49 @@ umpy
 
 **Prochaine étape suggérée :** Génération PDF avec noms charte dans le flux (orchestrator ou script) pour que les brouillons aient les pièces jointes.
 
+---
+
+### [2026-03-02] Agent: Cursor (Auto)
+**Action :** Plan de sprint collectif — corrections audit expert_automatisation
+
+**Fichiers créés :**
+- `SPRINT_CORRECTIONS.md` — plan en 3 phases : (1) corrections un par un, (2) test en conditions réelles, (3) surveillance et rapports par agent. Coordination chef de projet + expert_automatisation.
+
+**Fichiers modifiés :**
+- `AGENTS_ROADMAP.md` — référence à SPRINT_CORRECTIONS.md
+- `AGENTS_TODO.md` — section Sprint corrections (Phase 1, 2, 3)
+
+**Points à corriger (audit) :** ATV_CHECK fictif, matching mots-clés composés, niveau_poste None, email_trouve None, erreurs LLM, fallback bullet_cv_court.
+
+**Prochaine étape suggérée :** Lancer Phase 1 du sprint (corrections).
+
+---
+
+### [2026-03-02] Agent: Cursor (Auto) — Sprint 3 phases exécuté
+**Action :** Phase 1 (corrections) + Phase 2 (benchmarks data-driven) + Phase 3 (rapports)
+
+**Corrections :**
+- ATV_CHECK : intégration valider_donnees() dans orchestrator
+- Matching : _expand_keywords() pour mots-clés composés ; guard niveau_poste
+- Draft : skip create_draft si email_trouve vide ; GmailDraftingAgent refuse to_email vide
+- EmailEngine : fallback dict si LLM échoue
+- bullet_cv_court : fallback robuste (liste)
+
+**Benchmarks :** tests/benchmark_data/matching_cases.json, test_benchmark_*.py — 17 tests PASSED, ~4 s.
+
+**Documentation :** SPRINT_RAPPORTS.md, SPRINT_CORRECTIONS.md mis à jour, HISTORIQUE.md (benchmark ajouté).
+
+---
+
+### [2026-03-02] Agent: Cursor (Auto) — Chatbot LLM
+**Action :** Ajout couche LLM au chatbot Telegram (interprétation intention + contexte RACI)
+
+**Fichiers créés :**
+- `scheduler/chatbot_llm.py` — parse_intent_llm(), _get_raci_context()
+- `tests/test_chatbot_llm.py` — tests _get_raci_context
+
+**Fichiers modifiés :**
+- `scheduler/telegram_bot.py` — on_chat_message : appel LLM puis fallback règles ; _RACI_KEYWORDS ; contexte RACI injecté
+
+**Fonctionnement :** LLM (Groq/OpenAI) interprète l'intention (pipeline, pipeline_all, agents, raci, help). Contexte RACI (chef de projet, expert_automatisation) depuis base_real.json injecté dans le prompt. Fallback vers mots-clés si LLM indisponible ou timeout (8 s).
+

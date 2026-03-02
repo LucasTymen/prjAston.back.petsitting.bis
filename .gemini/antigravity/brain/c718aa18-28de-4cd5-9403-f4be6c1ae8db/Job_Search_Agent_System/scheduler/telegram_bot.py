@@ -109,7 +109,7 @@ def tail_log(path: str, n: int = 25) -> str:
         return "".join(lines[-n:]) if lines else "(vide)"
     except Exception as e:
         log.warning("tail_log %s: %s", path[:50], e)
-        return "(erreur lecture)")
+        return "(erreur lecture)"
 
 
 def _load_base_json() -> dict:
@@ -140,7 +140,8 @@ def _run_pipeline_sync(job_url: str, create_draft: bool) -> tuple:
         return (result, None)
     except Exception as e:
         log.exception("Pipeline %s", job_url[:60])
-        return (None, str(e))
+        err_msg = f"{type(e).__name__}: {str(e)}" if str(e) else type(e).__name__
+        return (None, err_msg)
 
 
 @guard
@@ -183,18 +184,115 @@ async def cmd_pipeline(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     msg = f"Pipeline terminé.\n\n{entreprise} — {titre}\nScore : {score} | Action : {action}"
     if create_draft and result.next_action == "POSTULER":
         msg += "\n\nBrouillon Gmail créé."
+    if entreprise in ("Entreprise Inconnue", "?", "Non spécifiée", "Inconnue", "Non disponible") or titre in ("Poste Inconnu", "?", "Indisponible"):
+        msg += "\n\nSi l'extraction échoue, le site (ex. Indeed) peut bloquer les requêtes. Utilise une URL de fiche d'offre directe (viewjob?jk=...)."
     await update.message.reply_text(msg)
 
 
 # Mots-clés pour le chatbot (langage naturel)
 _PIPELINE_KEYWORDS = (
-    "candidater", "candidature", "pipeline", "lance", "lancer", "run", "traite", "traiter",
-    "cette offre", "cette annonce", "cet offre", "cette url", "ce lien", "pour cette"
+    "candidater", "candidature", "candidate", "pipeline", "lance", "lancer", "run", "traite", "traiter",
+    "cette offre", "cette annonce", "cet offre", "cette url", "ce lien", "pour cette",
+    "annonces", "offres", "procédures",
 )
 _DRAFT_KEYWORDS = ("brouillon", "draft", "gmail", "mail", "email", "envoie", "envoyer", "crée le brouillon")
 
-# Regex URL (http/https, évite les espaces en fin)
-_URL_RE = re.compile(r"https?://[^\s\]\)]+", re.IGNORECASE)
+# Champs JSON typiques pour l'URL d'une offre (priorité à la première occurrence)
+_JSON_URL_KEYS = ("url", "link", "job_url", "lien", "apply_url", "job_link", "source_url")
+
+
+def _find_json_blob(text: str) -> str | None:
+    """Retourne le premier blob JSON (à partir de { ou [) ou None."""
+    for open_c, close_c in (("{", "}"), ("[", "]")):
+        i = text.find(open_c)
+        if i == -1:
+            continue
+        depth = 0
+        for j in range(i, len(text)):
+            if text[j] == open_c:
+                depth += 1
+            elif text[j] == close_c:
+                depth -= 1
+                if depth == 0:
+                    try:
+                        json.loads(text[i : j + 1])
+                        return text[i : j + 1]
+                    except json.JSONDecodeError:
+                        pass
+                    break
+    return None
+
+
+def _urls_from_json_obj(obj: object, urls: list[str]) -> None:
+    """Remplit urls avec toutes les chaînes http(s) trouvées récursivement ; privilégie les clés connues."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            key_lower = (k or "").strip().lower()
+            if key_lower in _JSON_URL_KEYS and isinstance(v, str) and v.startswith(("http://", "https://")):
+                if v not in urls:
+                    urls.append(v)
+            _urls_from_json_obj(v, urls)
+    elif isinstance(obj, list):
+        for item in obj:
+            _urls_from_json_obj(item, urls)
+    elif isinstance(obj, str) and obj.startswith(("http://", "https://")):
+        if obj not in urls:
+            urls.append(obj)
+
+
+def _extract_urls_from_json(text: str) -> list[str]:
+    """Si le message contient du JSON, en extrait les URLs d'offres (url, link, job_url, lien, etc.)."""
+    blob = _find_json_blob(text)
+    if not blob:
+        return []
+    try:
+        data = json.loads(blob)
+        urls: list[str] = []
+        _urls_from_json_obj(data, urls)
+        return urls
+    except json.JSONDecodeError:
+        return []
+
+
+# URLs : support longues (Glassdoor, LinkedIn, Indeed viewjob), markdown ](url), parenthèses dans le path
+def _extract_urls(text: str) -> list[str]:
+    urls: list[str] = []
+    # 1) Liens markdown ](https://...) avec éventuellement (xx) dans le path
+    for m in re.finditer(r"\]\((https?://(?:[^\)]|\([^\)]*\))+)\)", text, re.IGNORECASE):
+        u = m.group(1).strip()
+        if u and u not in urls:
+            urls.append(u)
+    # 2) URLs dans un blob JSON (personas[].jobs[].url, offres[].lien, etc.)
+    if not urls:
+        urls = _extract_urls_from_json(text)
+    # 3) URLs brutes : on s'arrête uniquement à l'espace, saut de ligne, tab ou ]
+    #    Les virgules, &, =, ? font partie des URLs (ex. Glassdoor KO0,20_KE21,38.htm?jl=...)
+    pos = 0
+    while True:
+        m = re.search(r"https?://", text[pos:], re.IGNORECASE)
+        if not m:
+            break
+        start = pos + m.start()
+        end = start + len(m.group(0))
+        while end < len(text):
+            c = text[end]
+            if c in " \t\r\]":
+                break
+            if c == "\n":
+                # URL coupée par un retour à la ligne ? Continuer si la ligne suivante ressemble à la suite de l'URL
+                rest = text[end + 1 :].lstrip()
+                if rest and (rest[0] in "&=?/" or rest[0].isalnum()):
+                    end += 1
+                    while end < len(text) and text[end] in " \t":
+                        end += 1
+                    continue
+                break
+            end += 1
+        u = text[start:end].rstrip(".,;:)")
+        if u and u not in urls:
+            urls.append(u)
+        pos = end
+    return urls
 
 
 def _parse_chat_intent(text: str) -> tuple[str | None, bool]:
@@ -205,7 +303,7 @@ def _parse_chat_intent(text: str) -> tuple[str | None, bool]:
     if not text or not text.strip():
         return (None, False)
     t = text.strip().lower()
-    urls = _URL_RE.findall(text)
+    urls = _extract_urls(text)
     url = urls[0] if urls else None
     if not url:
         return (None, False)
@@ -214,10 +312,64 @@ def _parse_chat_intent(text: str) -> tuple[str | None, bool]:
     return (url, want_draft) if want_pipeline else (None, False)
 
 
+# Intent "candidater sur toutes les offres du scan" / "candidate toutes les candidatures"
+_PIPELINE_ALL_KEYWORDS = (
+    "toutes les offres", "toutes les annonces", "toutes les candidatures",
+    "candidate toutes", "candidater sur toutes", "pipeline toutes",
+    "dernier scan", "offres du scan", "candidatures du status", "candidatures de /status",
+)
+# Intent "consulte tous les agents"
+_AGENTS_KEYWORDS = ("consulte tous les agents", "liste des agents", "quels agents", "agents disponibles")
+# Intent RACI / chef de projet
+_RACI_KEYWORDS = ("raci", "chef de projet", "qui fait quoi", "rôles", "responsabilités")
+
+
+def _parse_intent_with_llm(text: str) -> dict | None:
+    """
+    Tente l'interprétation LLM. Retourne dict (intent, url, create_draft, response) ou None.
+    Exécuter dans asyncio.to_thread car I/O bloquant.
+    """
+    try:
+        base_json = _load_base_json()
+    except FileNotFoundError:
+        base_json = {}
+    from scheduler.chatbot_llm import parse_intent_llm
+    return parse_intent_llm(text, base_json)
+
+
+def _last_scan_job_urls(max_urls: int = 5) -> list[str]:
+    """Retourne les URLs d'offres du dernier scan JSON (lien), au plus max_urls."""
+    scan_dir = PROJECT_ROOT / "storage" / "scans"
+    if not scan_dir.exists():
+        return []
+    files = list(scan_dir.glob("*.json"))
+    if not files:
+        return []
+    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    try:
+        data = json.loads(files[0].read_text(encoding="utf-8", errors="replace"))
+        offres = data.get("offres", [])[:max_urls]
+        return [o.get("lien") for o in offres if o.get("lien") and str(o.get("lien", "")).startswith(("http://", "https://"))]
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _agents_message():
+    """Message liste des agents (partagé règles + LLM)."""
+    return (
+        "Agents du système :\n\n"
+        "• Scraper — extrait titre, entreprise, description depuis l'URL d'offre\n"
+        "• Matching — compare l'offre au profil (persona, score, POSTULER/PASSER)\n"
+        "• Generator — produit CV et lettre de motivation ciblés\n"
+        "• Drafter — crée le brouillon Gmail avec pièces jointes\n\n"
+        "Pour lancer le pipeline : envoie une URL et dis « Candidater sur [url] » ou /pipeline <url> draft"
+    )
+
+
 @guard
 async def on_chat_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """
-    Chatbot : interprète les messages en langage naturel.
+    Chatbot : interprète les messages en langage naturel (LLM + fallback règles).
     Ex. "Candidater sur https://..." ou "Lance le pipeline pour cette offre https://... et crée le brouillon"
     """
     if not update.message or not update.message.text:
@@ -225,14 +377,137 @@ async def on_chat_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if text.startswith("/"):
         return
+    t = text.lower()
+
+    # 1) Tentative LLM (timeout court pour garder réactivité)
+    llm_result = None
+    try:
+        llm_result = await asyncio.wait_for(
+            asyncio.to_thread(_parse_intent_with_llm, text),
+            timeout=8.0,
+        )
+    except (asyncio.TimeoutError, Exception) as e:
+        log.debug("LLM intent fallback: %s", e)
+
+    if llm_result and llm_result.get("intent") not in ("unknown", ""):
+        intent = llm_result.get("intent", "")
+        # Intent RACI : réponse enrichie avec contexte chef de projet
+        if intent in ("raci", "agents"):
+            resp = (llm_result.get("response") or "").strip()
+            await update.message.reply_text(resp[:4000] if resp else _agents_message())
+            return
+        # Intent help
+        if intent == "help":
+            resp = (llm_result.get("response") or "").strip()
+            await update.message.reply_text(resp[:4000] if resp else "Utilise /help pour l'aide.")
+            return
+        # Intent pipeline_all
+        if intent == "pipeline_all":
+            job_urls = _last_scan_job_urls(max_urls=5)
+            if not job_urls:
+                await update.message.reply_text(
+                    "Aucun scan JSON avec offres trouvé. Lance /scan puis attends 2–3 min, puis réessaie."
+                )
+                return
+            await update.message.reply_text(f"Pipeline sur {len(job_urls)} offre(s) du dernier scan…")
+            done, failed = 0, 0
+            for job_url in job_urls:
+                try:
+                    result, err = await asyncio.to_thread(_run_pipeline_sync, job_url, create_draft=False)
+                    if err:
+                        failed += 1
+                        log.warning("Pipeline %s : %s", job_url[:50], err)
+                    else:
+                        done += 1
+                        o = (result.offre or {}) if result else {}
+                        await update.message.reply_text(f"✓ {o.get('entreprise', '?')} — {o.get('titre', '?')}")
+                except Exception as e:
+                    failed += 1
+                    log.warning("Pipeline %s : %s", job_url[:50], e)
+            await update.message.reply_text(f"Terminé : {done} traité(s), {failed} échec(s).")
+            return
+        # Intent pipeline : utiliser URL du LLM ou extraction regex
+        if intent == "pipeline":
+            url = llm_result.get("url") or (_extract_urls(text)[0] if _extract_urls(text) else None)
+            create_draft = llm_result.get("create_draft", False)
+            if url:
+                await update.message.reply_text("Pipeline en cours (extraction, matching, génération)...")
+                try:
+                    result, err = await asyncio.to_thread(_run_pipeline_sync, url, create_draft)
+                except Exception as e:
+                    await update.message.reply_text(f"Erreur : {e}")
+                    return
+                if err:
+                    await update.message.reply_text(f"Échec pipeline : {err}")
+                    return
+                offre = (result.offre or {}) if result else {}
+                matching = (result.matching or {}) if result else {}
+                msg = f"Pipeline terminé.\n\n{offre.get('entreprise', '?')} — {offre.get('titre', '?')}\nScore : {matching.get('score', '—')} | Action : {result.next_action}"
+                if create_draft and result.next_action == "POSTULER":
+                    msg += "\n\nBrouillon Gmail créé."
+                await update.message.reply_text(msg)
+                return
+
+    # 2) Fallback règles (keywords)
+    if any(kw in t for kw in _RACI_KEYWORDS):
+        try:
+            from scheduler.chatbot_llm import _get_raci_context
+            base = _load_base_json()
+            raci_text = _get_raci_context(base)
+            await update.message.reply_text(raci_text[:4000] if raci_text else _agents_message())
+        except Exception:
+            await update.message.reply_text(_agents_message())
+        return
+
+    if any(kw in t for kw in _AGENTS_KEYWORDS):
+        await update.message.reply_text(_agents_message())
+        return
+
+    if any(kw in t for kw in _PIPELINE_ALL_KEYWORDS):
+        job_urls = _last_scan_job_urls(max_urls=5)
+        if not job_urls:
+            await update.message.reply_text(
+                "Aucun scan JSON avec offres trouvé. Lance /scan puis attends 2–3 min, puis réessaie."
+            )
+            return
+        await update.message.reply_text(f"Pipeline sur {len(job_urls)} offre(s) du dernier scan…")
+        done, failed = 0, 0
+        for job_url in job_urls:
+            try:
+                result, err = await asyncio.to_thread(_run_pipeline_sync, job_url, create_draft=False)
+                if err:
+                    failed += 1
+                    log.warning("Pipeline %s : %s", job_url[:50], err)
+                else:
+                    done += 1
+                    o = (result.offre or {}) if result else {}
+                    await update.message.reply_text(f"✓ {o.get('entreprise', '?')} — {o.get('titre', '?')}")
+            except Exception as e:
+                failed += 1
+                log.warning("Pipeline %s : %s", job_url[:50], e)
+        await update.message.reply_text(f"Terminé : {done} traité(s), {failed} échec(s).")
+        return
+
     url, create_draft = _parse_chat_intent(text)
     if not url:
+        want_candidate = any(kw in t for kw in _PIPELINE_KEYWORDS) or "candidate" in t
+        if want_candidate and _find_json_blob(text):
+            await update.message.reply_text(
+                "Ce JSON ne contient pas d'URLs d'offres.\n\n"
+                "Pour candidater, il faut le lien vers la fiche (LinkedIn, Indeed, Glassdoor, etc.). "
+                "Ajoute un champ à chaque offre : \"url\", \"link\", \"job_url\" ou \"lien\".\n\n"
+                "Ex. : \"company\": \"InfraSys\", \"title\": \"...\", \"url\": \"https://linkedin.com/jobs/...\"\n\n"
+                "Tu peux aussi envoyer directement une ou plusieurs URLs avec « Candidater sur [url] »."
+            )
+            return
         await update.message.reply_text(
             "Tu peux m’envoyer une URL d’offre et par exemple :\n"
             "• « Candidater sur [url] »\n"
             "• « Lance le pipeline pour [url] »\n"
             "• « Candidater sur [url] et crée le brouillon Gmail »\n\n"
-            "Ou utiliser la commande : /pipeline <url> draft"
+            "• « Candidater sur toutes les offres du scan »\n"
+            "• « Consulte tous les agents » / « Qui fait quoi ? » (RACI)\n\n"
+            "Ou : /pipeline <url> draft"
         )
         return
     await update.message.reply_text("Pipeline en cours (extraction, matching, génération)...")
@@ -253,6 +528,8 @@ async def on_chat_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     msg = f"Pipeline terminé.\n\n{entreprise} — {titre}\nScore : {score} | Action : {action}"
     if create_draft and result.next_action == "POSTULER":
         msg += "\n\nBrouillon Gmail créé."
+    if entreprise in ("Entreprise Inconnue", "?", "Non spécifiée", "Inconnue", "Non disponible") or titre in ("Poste Inconnu", "?", "Indisponible"):
+        msg += "\n\nSi l'extraction échoue, le site (ex. Indeed) peut bloquer les requêtes. Utilise une URL de fiche d'offre directe (viewjob?jk=...)."
     await update.message.reply_text(msg)
 
 
@@ -363,7 +640,15 @@ async def cmd_offres(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 total = meta.get("nombre_offres", len(data.get("offres", [])))
                 msg = f"Dernier scan : {latest.name}\nTotal : {total} offre(s)\n\n"
                 for o in offres:
-                    msg += f"• {o.get('entreprise','?')} — {o.get('titre','?')} | {o.get('score_pct','')}%\n"
+                    ent, tit = o.get("entreprise", "?"), o.get("titre", "?")
+                    if ent in ("?", "Entreprise Inconnue") and tit in ("?", "Poste Inconnu"):
+                        lien = (o.get("lien") or "")[:55]
+                        if lien:
+                            msg += f"• {lien}… | {o.get('score_pct','')}%\n"
+                        else:
+                            msg += f"• {ent} — {tit} | {o.get('score_pct','')}%\n"
+                    else:
+                        msg += f"• {ent} — {tit} | {o.get('score_pct','')}%\n"
                 if not offres:
                     msg += "Aucune offre affichée (liste vide ou tout déjà vu)."
             except json.JSONDecodeError:

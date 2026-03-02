@@ -71,10 +71,13 @@ class CvPdfGenerator:
                     story.append(Paragraph(bullet, normal_style))
                 story.append(Spacer(1, 6))
 
-            # 6. FORMATION
+            # 6. FORMATION (compatible generator: etablissement/intitule/annee ou ecole/diplome/annee)
             story.append(Paragraph("<b>Formation</b>", bold_style))
             for edu in cv_data.get('formation', []):
-                story.append(Paragraph(f"<b>{edu.get('ecole')}</b> – {edu.get('diplome')} ({edu.get('annee')})", normal_style))
+                ecole = edu.get('ecole') or edu.get('etablissement', '')
+                diplome = edu.get('diplome') or edu.get('intitule') or edu.get('niveau', '')
+                annee = edu.get('annee', '')
+                story.append(Paragraph(f"<b>{ecole}</b> – {diplome} ({annee})", normal_style))
 
             doc.build(story)
             return filepath

@@ -104,7 +104,7 @@ docker logs -f job_telegram_bot
 
 | Cron | Fréquence | Commande |
 |------|-----------|----------|
-| Principal | `0 */2 * * *` | `cron_runner --mode both --sources wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec,manpower,adecco` |
+| Principal | `0 2,6,12,19 * * *` (4×/jour : 2h, 6h, 12h, 19h) | `cron_runner --mode both --sources wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec,manpower,adecco` |
 | Relances | `0 8 * * *` | `followup_runner` |
 
 **Mode both :** scan + matching → filtre POSTULER uniquement → pipeline full (CV, LM, emails) → persistance `applications.db` et `storage/outputs/`

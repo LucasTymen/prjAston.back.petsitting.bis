@@ -35,6 +35,15 @@
 
 ---
 
+## Sprint corrections (audit expert_automatisation)
+- [x] Phase 1 : Corrections un par un (ATV_CHECK, matching mots-clés, niveau_poste, email_trouve, erreurs LLM, bullet_cv_court)
+- [x] Phase 2 : Tests data-driven (benchmark matching, ATV, régression) — 16 tests, ~3 s
+- [x] Phase 3 : Rapports par agent — `SPRINT_RAPPORTS.md`
+
+Voir `SPRINT_CORRECTIONS.md` pour le détail.
+
+---
+
 ## Améliorations futures (backlog)
 - [ ] EntrepriseScraper : URL dynamique depuis l'offre
 - [ ] JobQueue : paramètres de recherche via `.env`

@@ -102,7 +102,8 @@ class CvAtvGenerator:
                 bullets = (
                     raw_bullets.get("version_operationnelle") if secteur == "it_support"
                     else raw_bullets.get("version_strategique")
-                ) or list(raw_bullets.values())[0] if raw_bullets else []
+                ) or (list(raw_bullets.values())[0] if raw_bullets else [])
+                bullets = bullets if isinstance(bullets, list) else [str(bullets)]
             else:
                 bullets = raw_bullets if isinstance(raw_bullets, list) else []
             cv_data["experiences"].append({
@@ -320,4 +321,11 @@ CONSIGNES pour chaque email :
 
 OUTPUT JSON: {{ "email_j0": "...", "email_j2": "...", "email_j1": "...", "email_j1_bis": "...", "email_j2_bis": "...", "sujet": "..." }}
 """
-        return self.llm.chat_completion(prompt, system_prompt="Écrivain pro, tonalité anti-IA.", json_mode=True)
+        res = self.llm.chat_completion(prompt, system_prompt="Écrivain pro, tonalité anti-IA.", json_mode=True)
+        if not isinstance(res, dict):
+            res = {}
+        fallback = {
+            "email_j0": "", "email_j2": "", "email_j1": "", "email_j1_bis": "", "email_j2_bis": "",
+            "sujet": f"Candidature - {o.get('titre', 'Poste')}"
+        }
+        return {**fallback, **(res or {})}

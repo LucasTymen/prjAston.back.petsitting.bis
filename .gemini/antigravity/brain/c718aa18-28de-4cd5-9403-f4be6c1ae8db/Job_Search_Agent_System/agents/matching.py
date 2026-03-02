@@ -30,7 +30,8 @@ class MatchingEngine:
         
         # 2. Détermination de la séniorité exposée
         # Si Strategique ou Senior détecté par Scraper -> Strategique
-        exposition = "Strategique" if scraper_data.niveau_poste.lower() in ["senior", "strategique"] else "Operationnelle"
+        niveau = (scraper_data.niveau_poste or "").lower()
+        exposition = "Strategique" if niveau in ["senior", "strategique"] else "Operationnelle"
         
         # 3. Détermination de l'action suivante
         next_action = "PASSER"
@@ -47,6 +48,17 @@ class MatchingEngine:
             mots_cles_ats=scraper_data.mots_cles_detectes[:10]
         )
 
+    def _expand_keywords(self, keywords: List[str]) -> List[str]:
+        """Décompose les mots-clés composés (ex. 'SEO technique' -> ['seo', 'technique'])."""
+        expanded = []
+        for k in keywords:
+            if k and isinstance(k, str):
+                for token in k.replace("-", " ").replace("/", " ").split():
+                    t = token.lower().strip()
+                    if t:
+                        expanded.append(t)
+        return expanded
+
     def _score_all_personas(self, keywords_offre: List[str]) -> Dict[str, dict]:
         results = {}
         # Poids par type (si défini dans le moteur du JSON)
@@ -56,10 +68,14 @@ class MatchingEngine:
         if not self.personas:
              return {}
 
+        # Mots-clés de l'offre : inclure les tokens originaux + tokens décomposés (ex. "SEO technique" -> seo, technique)
+        keywords_job_raw = [k.lower() for k in keywords_offre if k]
+        keywords_job_expanded = self._expand_keywords(keywords_offre)
+        keywords_job = list(set(keywords_job_raw + [t for t in keywords_job_expanded if t]))
+
         for name, data in self.personas.items():
             # Comparaison insensible à la casse
             keywords_persona = [k.lower() for k in data.get("mots_cles_detection", [])]
-            keywords_job = [k.lower() for k in keywords_offre]
             
             intersection = set(keywords_job) & set(keywords_persona)
             

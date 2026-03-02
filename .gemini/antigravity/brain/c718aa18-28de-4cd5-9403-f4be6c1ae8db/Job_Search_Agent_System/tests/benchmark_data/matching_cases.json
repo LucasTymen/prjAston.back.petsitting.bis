@@ -1,0 +1,51 @@
+[
+  {
+    "id": "niveau_poste_none",
+    "description": "niveau_poste None ou vide ne doit pas crasher",
+    "scraper_output": {
+      "titre": "Dev Backend",
+      "entreprise": "Tech",
+      "description_clean": "Python",
+      "mots_cles_detectes": ["Python", "API"],
+      "niveau_poste": null,
+      "probleme_detecte": "N/A"
+    },
+    "expected": {
+      "exposition_seniorite": "Operationnelle",
+      "no_crash": true
+    }
+  },
+  {
+    "id": "mots_cles_composites",
+    "description": "SEO technique doit matcher persona seo_technique (SEO + technique)",
+    "scraper_output": {
+      "titre": "Responsable SEO",
+      "entreprise": "Orange",
+      "description_clean": "SEO technique, GA4",
+      "mots_cles_detectes": ["SEO technique", "GA4", "GTM"],
+      "niveau_poste": "senior",
+      "probleme_detecte": "N/A"
+    },
+    "expected": {
+      "persona_selectionne": "seo_technique",
+      "score_min": 45,
+      "exposition_seniorite": "Strategique"
+    }
+  },
+  {
+    "id": "big_data_ia",
+    "description": "Big data et IA doivent matcher automation_engineer",
+    "scraper_output": {
+      "titre": "Data Engineer IA",
+      "entreprise": "ScaleUp",
+      "description_clean": "Big data, machine learning",
+      "mots_cles_detectes": ["Big data", "IA", "machine learning", "pipeline"],
+      "niveau_poste": "intermediaire",
+      "probleme_detecte": "N/A"
+    },
+    "expected": {
+      "persona_selectionne": "automation_engineer",
+      "score_min": 45
+    }
+  }
+]

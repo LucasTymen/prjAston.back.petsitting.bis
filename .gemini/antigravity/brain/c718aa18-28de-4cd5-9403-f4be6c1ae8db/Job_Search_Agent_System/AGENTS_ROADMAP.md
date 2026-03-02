@@ -3,7 +3,10 @@
 ## Architecture & Coordination
 - **Source de vérité :** `resources/base_real.json` (ou `cv_base_datas_pour_candidatures.json`, `base.json`). ATV Strict.
 - **Coordination :** Triplet `AGENTS_LOG.md`, `AGENTS_ROADMAP.md`, `AGENTS_TODO.md`.
-- **LLM :** OpenAI `gpt-4o-mini` (via `core/llm_client.py`).
+- **Historique :** `HISTORIQUE.md` — timestamps, pays (France), moments clés, benchmarks.
+- **Architecture agentique :** `ARCHITECTURE_AGENTIQUE.md` — explication de l’approche agentic et rôle de chaque agent.
+- **Sprint corrections :** `SPRINT_CORRECTIONS.md` — plan de sprint collectif (corrections audit, test réel, rapports par agent). Coordination : chef de projet + expert_automatisation.
+- **LLM :** Groq (prioritaire) ou OpenAI `gpt-4o-mini` (via `core/llm_client.py`).
 
 ## Workflow Actuel
 1. **Cron principal :** `--mode both` = scan + matching + filtre POSTULER + pipeline full (CV/LM/emails)
