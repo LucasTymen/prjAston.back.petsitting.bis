@@ -21,6 +21,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 import subprocess
 from collections import defaultdict
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -314,8 +315,16 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             try:
                 data = json.loads(r.get("result_json") or "{}")
                 offre = data.get("offre", {})
-                entreprise = offre.get("entreprise", "?")
-                titre = offre.get("titre", "?")
+                entreprise = offre.get("entreprise") or "?"
+                titre = offre.get("titre") or "?"
+                if entreprise == "?" and titre == "?":
+                    url = r.get("job_url") or ""
+                    if url:
+                        try:
+                            dom = urlparse(url).netloc or url[:40]
+                            titre = dom.replace("www.", "") if len(dom) > 2 else url[:35] + "…"
+                        except Exception:
+                            titre = url[:40] + "…" if len(url) > 40 else url
             except (json.JSONDecodeError, TypeError):
                 entreprise, titre = "?", "?"
             emoji = statut_emoji.get(r.get("status", ""), "•")
@@ -349,10 +358,14 @@ async def cmd_offres(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if latest.suffix == ".json":
             try:
                 data = json.loads(text)
+                meta = data.get("metadata", {})
                 offres = data.get("offres", [])[:10]
-                msg = f"Dernieres offres ({latest.name})\n\n"
+                total = meta.get("nombre_offres", len(data.get("offres", [])))
+                msg = f"Dernier scan : {latest.name}\nTotal : {total} offre(s)\n\n"
                 for o in offres:
                     msg += f"• {o.get('entreprise','?')} — {o.get('titre','?')} | {o.get('score_pct','')}%\n"
+                if not offres:
+                    msg += "Aucune offre affichée (liste vide ou tout déjà vu)."
             except json.JSONDecodeError:
                 msg = "Fichier JSON invalide."
         else:
@@ -503,14 +516,30 @@ async def callback_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("Scan en cours...")
     log.info("Scan manuel declenche par user=%s", user.id)
 
+    sources = "wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec,manpower,adecco"
     try:
         log_file = LOGS_DIR / "manual_scan.log"
+        (PROJECT_ROOT / "storage" / "scans").mkdir(parents=True, exist_ok=True)
         with open(log_file, "a", encoding="utf-8") as f:
+            # 1) job_scanner_runner écrit dans storage/scans/ → /offres pourra afficher les offres
+            subprocess.Popen(
+                [
+                    sys.executable, "-m", "scheduler.job_scanner_runner",
+                    "--sources", sources,
+                    "--format", "json",
+                    "--max", "10",
+                ],
+                cwd=str(PROJECT_ROOT),
+                stdout=f,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            # 2) cron_runner pour le pipeline complet (candidatures, relances)
             subprocess.Popen(
                 [
                     sys.executable, "-m", "scheduler.cron_runner",
                     "--mode", "both",
-                    "--sources", "wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec",
+                    "--sources", sources,
                     "--max", "10",
                 ],
                 cwd=str(PROJECT_ROOT),
@@ -520,7 +549,7 @@ async def callback_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             )
         await ctx.bot.send_message(
             chat_id=query.message.chat_id,
-            text="Scan lance. /logs dans 2-3 min pour les resultats.",
+            text="Scan lance (scanner + pipeline). /offres dans 2–3 min pour les offres. /logs pour les resultats.",
         )
     except Exception as e:
         log.exception("callback_scan")

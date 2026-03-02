@@ -153,7 +153,7 @@ def run(
                 log.error("Erreur scan %s : %s", url[:60], e)
                 dedup.mark_failed(url, str(e))
 
-    if output_format == "json" and records:
+    if output_format == "json":
         write_scan_json(output_file, records, sources=sources)
     log.info("Scan termine : %d offres -> %s", total, output_file)
     return total
@@ -161,8 +161,8 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="JobScanner 24h — CSV ou JSON")
-    parser.add_argument("--sources", default="wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec",
-                    help="wttj, francetravail, indeed, hellowork, dogfinance, meteojob, glassdoor, linkedin, apec")
+    parser.add_argument("--sources", default="wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec,manpower,adecco",
+                    help="wttj, francetravail, indeed, hellowork, dogfinance, meteojob, glassdoor, linkedin, apec, manpower, adecco")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--max", type=int, default=10, help="Max offres par source")
     parser.add_argument("--format", choices=("csv", "json"), default="csv", help="Format de sortie")

@@ -212,8 +212,8 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cron runner Job Search Agent")
-    parser.add_argument("--sources", default="wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec",
-                    help="Sources : wttj, francetravail, indeed, hellowork, dogfinance, meteojob, glassdoor, linkedin, apec")
+    parser.add_argument("--sources", default="wttj,francetravail,indeed,hellowork,dogfinance,meteojob,glassdoor,linkedin,apec,manpower,adecco",
+                    help="Sources : wttj, francetravail, indeed, hellowork, dogfinance, meteojob, glassdoor, linkedin, apec, manpower, adecco")
     parser.add_argument("--dry-run", action="store_true", help="Simule le pipeline sans exécuter")
     parser.add_argument("--max", type=int, default=5, help="Max offres par source")
     parser.add_argument("--mode", choices=("full", "scan", "both"), default="full",

@@ -66,6 +66,22 @@ SOURCES: dict[str, dict[str, Any]] = {
             "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=ingenieur",
         ],
     },
+    "manpower": {
+        "base": "https://www.manpower.fr",
+        "urls": [
+            "https://www.manpower.fr/offre-emploi/",
+            "https://www.manpower.fr/offre-emploi/?keywords=developpeur",
+            "https://www.manpower.fr/offre-emploi/?keywords=ingenieur",
+        ],
+    },
+    "adecco": {
+        "base": "https://www.adecco.fr",
+        "urls": [
+            "https://www.adecco.fr/fr-fr/emploi/",
+            "https://www.adecco.fr/fr-fr/emploi/recherche?keywords=developpeur",
+            "https://www.adecco.fr/fr-fr/emploi/recherche?keywords=technicien",
+        ],
+    },
 }
 
 HEADERS = {
@@ -433,6 +449,75 @@ def _discover_jobs_apec(max_jobs: int, base_json: dict | None = None) -> list[st
     return urls
 
 
+def _discover_jobs_manpower(max_jobs: int, base_json: dict | None = None) -> list[str]:
+    """Manpower France — offres intérim, CDI, CDD. requests + BeautifulSoup."""
+    urls: list[str] = []
+    seen: set[str] = set()
+    base_site = SOURCES["manpower"]["base"]
+    listing_urls = SOURCES["manpower"].get("urls", [f"{base_site}/offre-emploi/"])
+
+    for url in listing_urls:
+        if len(urls) >= max_jobs:
+            break
+        try:
+            time.sleep(random.uniform(2, 5))
+            r = requests.get(url, headers=HEADERS, timeout=15)
+            r.raise_for_status()
+            soup = BeautifulSoup(r.text, "html.parser")
+            for a in soup.select("a[href*='/offre-emploi/'], a[href*='/offre/'], a[href*='/job/']"):
+                href = a.get("href", "")
+                if not href:
+                    continue
+                full = href if href.startswith("http") else base_site + href
+                if "manpower.fr" not in full or full in seen:
+                    continue
+                if full == url or "offre-emploi?" in full or "keywords=" in full:
+                    continue
+                seen.add(full)
+                urls.append(full)
+                if len(urls) >= max_jobs:
+                    return urls
+        except Exception as e:
+            print(f"[discoverer] Erreur Manpower : {e}")
+
+    return urls
+
+
+def _discover_jobs_adecco(max_jobs: int, base_json: dict | None = None) -> list[str]:
+    """Adecco France — offres intérim, CDI, CDD. requests + BeautifulSoup."""
+    urls: list[str] = []
+    seen: set[str] = set()
+    base_site = SOURCES["adecco"]["base"]
+    listing_urls = SOURCES["adecco"].get("urls", [f"{base_site}/fr-fr/emploi/"])
+
+    for url in listing_urls:
+        if len(urls) >= max_jobs:
+            break
+        try:
+            time.sleep(random.uniform(2, 5))
+            r = requests.get(url, headers=HEADERS, timeout=15)
+            r.raise_for_status()
+            soup = BeautifulSoup(r.text, "html.parser")
+            for a in soup.select("a[href*='/offre/'], a[href*='/emploi/'], a[href*='/job/'], a[href*='adecco.fr/fr-fr']"):
+                href = a.get("href", "")
+                if not href:
+                    continue
+                full = href if href.startswith("http") else base_site + href
+                if "adecco.fr" not in full or full in seen:
+                    continue
+                if full == url or "recherche" in full or "keywords=" in full:
+                    continue
+                if "/offre/" in full or "/emploi/" in full:
+                    seen.add(full)
+                    urls.append(full)
+                if len(urls) >= max_jobs:
+                    return urls
+        except Exception as e:
+            print(f"[discoverer] Erreur Adecco : {e}")
+
+    return urls
+
+
 def discover_jobs(
     source: str,
     max_jobs: int = 10,
@@ -497,5 +582,11 @@ def discover_jobs(
 
     if source == "apec":
         return _discover_jobs_apec(max_jobs, base_json)
+
+    if source == "manpower":
+        return _discover_jobs_manpower(max_jobs, base_json)
+
+    if source == "adecco":
+        return _discover_jobs_adecco(max_jobs, base_json)
 
     return []
